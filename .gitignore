@@ -18,3 +18,39 @@ system/uploads/
 
 # Linux
 *.swp
+
+
+# ROS2 colcon
+build/
+install/
+log/
+log_latest/
+
+# ROS2 extras
+*.launch.pyc
+*.bag
+*.bag.active
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploads / runtime data
+system/uploads/
+data/
+tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# Linux / editor
+*.swp
+*~
