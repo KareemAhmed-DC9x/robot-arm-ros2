@@ -1,0 +1,7 @@
+{
+  "OPERATOR_042": {"password": "1234", "role": "operator", "active": true, "id": "101"},
+  "TECH_GAMMA": {"password": "5678", "role": "operator", "active": true, "id": "102"},
+  "SYS_ANALYST": {"password": "0000", "role": "operator", "active": false, "id": "103"},
+  "ENG_SEC_7": {"password": "9999", "role": "operator", "active": true, "id": "104"},
+  "admin": {"password": "admin1234", "role": "admin", "active": true, "id": "1"}
+}

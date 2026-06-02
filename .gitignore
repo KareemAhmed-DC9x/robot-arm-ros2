@@ -1,0 +1,20 @@
+# ROS2
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+*.db
+
+# Uploaded files
+system/uploads/
+
+# VS Code
+.vscode/
+
+# Linux
+*.swp

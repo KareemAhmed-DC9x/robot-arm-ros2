@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ARM MONITOR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg:      #060810;
+    --panel:   #0c0e14;
+    --border:  #161c26;
+    --accent:  #00e5ff;
+    --green:   #00ff87;
+    --orange:  #ff9500;
+    --red:     #ff3366;
+    --text:    #b8cce0;
+    --dim:     #3a4a5e;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: .14em;
+    color: var(--accent);
+  }
+  .logo span { color: var(--orange); }
+
+  .header-right { display: flex; align-items: center; gap: 20px; }
+
+  #conn-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: all .3s;
+  }
+  #conn-dot.ok  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  #conn-dot.err { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+
+  #conn-txt { font-size: .7rem; letter-spacing: .08em; color: var(--dim); }
+
+  .nav-link {
+    font-size: .7rem;
+    color: var(--dim);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    padding: 5px 14px;
+    letter-spacing: .06em;
+    transition: all .15s;
+  }
+  .nav-link:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ---- CONTENT ---- */
+  .content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    overflow: hidden;
+  }
+
+  /* ---- 3D CANVAS ---- */
+  #canvas-wrap {
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #0d1520 0%, #060810 70%);
+  }
+
+  #three-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* overlay labels */
+  .overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  .axis-label {
+    position: absolute;
+    font-size: .6rem;
+    letter-spacing: .08em;
+    color: var(--dim);
+  }
+
+  /* ---- SIDE PANEL ---- */
+  .side {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+  }
+
+  .side-section {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sec-title {
+    font-family: 'Orbitron', monospace;
+    font-size: .58rem;
+    letter-spacing: .14em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ---- JOINT DIALS ---- */
+  .joint-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .joint-label {
+    font-family: 'Orbitron', monospace;
+    font-size: .65rem;
+    color: var(--dim);
+    width: 28px;
+    flex-shrink: 0;
+  }
+
+  .joint-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    position: relative;
+    overflow: visible;
+  }
+
+  .joint-bar {
+    height: 100%;
+    background: var(--accent);
+    transition: width .2s ease;
+    position: relative;
+  }
+
+  .joint-bar.moving { background: var(--orange); }
+  .joint-bar.moving::after {
+    content: '';
+    position: absolute;
+    right: -4px; top: -3px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--orange);
+    animation: blink 0.7s infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .joint-val {
+    font-size: .75rem;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: right;
+    transition: color .2s;
+  }
+
+  .joint-val.moving { color: var(--orange); }
+
+  /* ---- TELEMETRY ---- */
+  .tele-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .tele-card {
+    background: #07090f;
+    border: 1px solid var(--border);
+    padding: 10px;
+  }
+
+  .tele-key { font-size: .58rem; color: var(--dim); letter-spacing: .06em; }
+  .tele-val {
+    font-family: 'Orbitron', monospace;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 3px;
+  }
+
+  /* ---- LOG ---- */
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    font-size: .62rem;
+    line-height: 1.8;
+    padding: 12px 16px;
+    color: var(--dim);
+  }
+
+  #log .rx   { color: var(--green); }
+  #log .info { color: var(--dim); }
+  #log .err  { color: var(--red); }
+  .ts { color: #1c2535; margin-right: 6px; }
+
+  /* ---- SCROLLBAR ---- */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">ARM<span>.</span>MONITOR</div>
+  <div class="header-right">
+    <a class="nav-link" href="/">⬅ CONTROL</a>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="conn-dot"></div>
+      <span id="conn-txt">CONNECTING</span>
+    </div>
+  </div>
+</header>
+
+<div class="content">
+
+  <!-- 3D VIEW -->
+  <div id="canvas-wrap">
+    <canvas id="three-canvas"></canvas>
+    <div class="overlay">
+      <span class="axis-label" style="bottom:24px;left:24px">6-DOF ROBOT ARM</span>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side">
+
+    <!-- JOINT ANGLES -->
+    <div class="side-section">
+      <div class="sec-title">⚙ JOINT ANGLES</div>
+      <div id="joints-list"></div>
+    </div>
+
+    <!-- TELEMETRY -->
+    <div class="side-section">
+      <div class="sec-title">📊 TELEMETRY</div>
+      <div class="tele-grid">
+        <div class="tele-card">
+          <div class="tele-key">MOVING</div>
+          <div class="tele-val" id="tele-moving">0</div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-key">STOPPED</div>
+          <div class="tele-val" id="tele-stopped">6</div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-key">UPDATE Hz</div>
+          <div class="tele-val" id="tele-hz">—</div>
+        </div>
+        <div class="tele-card">
+          <div class="tele-key">LATENCY</div>
+          <div class="tele-val" id="tele-lat">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAW LOG -->
+    <div class="sec-title" style="padding:14px 20px 0">📡 RAW</div>
+    <div id="log"></div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const NUM = 6;
+
+// Link lengths for visualization (mm, relative)
+const LINK = [0, 150, 130, 110, 90, 60, 40];
+
+// Axis of rotation per joint (simplified — adjust to your robot)
+// 'Y' = yaw (around world Y), 'X' = pitch (around local X)
+const JOINT_AXIS = ['Y','X','X','X','Y','X'];
+
+// ============================================================
+//  STATE
+// ============================================================
+let angles  = Array(NUM).fill(0);
+let moving  = Array(NUM).fill(false);
+let lastTs  = Date.now();
+let frameN  = 0;
+let fpsTs   = Date.now();
+
+// ============================================================
+//  BUILD JOINT UI
+// ============================================================
+const jointsList = document.getElementById('joints-list');
+for (let i = 0; i < NUM; i++) {
+  jointsList.innerHTML += `
+    <div class="joint-row">
+      <div class="joint-label">J${i+1}</div>
+      <div class="joint-bar-wrap">
+        <div class="joint-bar" id="bar-${i}" style="width:50%"></div>
+      </div>
+      <div class="joint-val" id="jval-${i}">0.00°</div>
+    </div>`;
+}
+
+function updateJointUI() {
+  for (let i = 0; i < NUM; i++) {
+    const pct  = ((angles[i] + 180) / 360) * 100;
+    const bar  = document.getElementById(`bar-${i}`);
+    const val  = document.getElementById(`jval-${i}`);
+    if (bar) {
+      bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+      bar.className   = 'joint-bar' + (moving[i] ? ' moving' : '');
+    }
+    if (val) {
+      val.textContent = angles[i].toFixed(2) + '°';
+      val.className   = 'joint-val' + (moving[i] ? ' moving' : '');
+    }
+  }
+  const mCount = moving.filter(Boolean).length;
+  document.getElementById('tele-moving').textContent  = mCount;
+  document.getElementById('tele-stopped').textContent = NUM - mCount;
+}
+
+// ============================================================
+//  SOCKET.IO
+// ============================================================
+const socket = io({ transports: ['websocket'] });
+const dot    = document.getElementById('conn-dot');
+const ctxt   = document.getElementById('conn-txt');
+
+socket.on('connect',    () => { dot.className='ok'; ctxt.textContent='LIVE'; });
+socket.on('disconnect', () => { dot.className='err'; ctxt.textContent='DISCONNECTED'; });
+
+let lastUpdate = Date.now();
+
+socket.on('arm_status', data => {
+  const now   = Date.now();
+  const lat   = now - lastUpdate;
+  lastUpdate  = now;
+
+  if (data.positions) {
+    for (let i = 0; i < NUM; i++) angles[i] = data.positions[i] ?? 0;
+  }
+  if (data.moving) {
+    for (let i = 0; i < NUM; i++) moving[i] = data.moving[i] ?? false;
+  }
+
+  updateJointUI();
+  update3D();
+
+  document.getElementById('tele-lat').textContent = lat + 'ms';
+
+  if (data.raw) addLog(data.raw, 'rx');
+});
+
+// FPS counter
+setInterval(() => {
+  const now = Date.now();
+  const fps = (frameN / ((now - fpsTs) / 1000)).toFixed(1);
+  document.getElementById('tele-hz').textContent = fps;
+  frameN = 0; fpsTs = now;
+}, 2000);
+
+// ============================================================
+//  LOG
+// ============================================================
+const logEl = document.getElementById('log');
+function addLog(msg, cls='info') {
+  const now = new Date();
+  const ts  = now.toTimeString().slice(0,8);
+  const d   = document.createElement('div');
+  d.className = cls;
+  d.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+  logEl.prepend(d);
+  if (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
+}
+
+// ============================================================
+//  THREE.JS — 3D ARM
+// ============================================================
+const canvas = document.getElementById('three-canvas');
+const wrap   = document.getElementById('canvas-wrap');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000);
+camera.position.set(400, 350, 500);
+camera.lookAt(0, 150, 0);
+
+// Resize
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x223344, 1.5));
+const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+dir.position.set(300, 500, 400);
+dir.castShadow = true;
+scene.add(dir);
+const fill = new THREE.PointLight(0x00e5ff, 0.6, 1200);
+fill.position.set(-300, 200, 200);
+scene.add(fill);
+
+// Grid floor
+const gridH = new THREE.GridHelper(600, 20, 0x1e2530, 0x161c26);
+scene.add(gridH);
+
+// Base cylinder
+const baseMat = new THREE.MeshStandardMaterial({ color: 0x1a2535, metalness: .8, roughness: .3 });
+const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(40, 50, 30, 32), baseMat);
+baseMesh.position.y = 15;
+scene.add(baseMesh);
+
+// Joint material
+const jMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, metalness: .9, roughness: .2, emissive: 0x003344 });
+// Link material
+const lMat = new THREE.MeshStandardMaterial({ color: 0x1e2e40, metalness: .7, roughness: .4 });
+// Moving material
+const mMat = new THREE.MeshStandardMaterial({ color: 0xff9500, metalness: .9, roughness: .2, emissive: 0x331a00 });
+
+// Build arm: array of { pivot, joint, link }
+const joints  = [];
+let   parent  = scene;
+let   offsetY = 30;   // base top
+
+for (let i = 0; i < NUM; i++) {
+  const len = LINK[i + 1];
+
+  // Pivot group (rotates)
+  const pivot = new THREE.Group();
+  pivot.position.y = offsetY;
+  parent.add(pivot);
+
+  // Joint sphere
+  const jMesh = new THREE.Mesh(new THREE.SphereGeometry(12, 16, 16), jMat.clone());
+  pivot.add(jMesh);
+
+  // Link box
+  const lMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(10, len, 10),
+    lMat.clone()
+  );
+  lMesh.position.y = len / 2;
+  pivot.add(lMesh);
+
+  // Axis indicator line
+  const axMat = new THREE.LineBasicMaterial({ color: 0x003344 });
+  const axGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-20, 0, 0), new THREE.Vector3(20, 0, 0)
+  ]);
+  pivot.add(new THREE.Line(axGeo, axMat));
+
+  joints.push({ pivot, jMesh, lMesh });
+
+  parent  = pivot;
+  offsetY = len;   // next joint sits at top of this link
+}
+
+// End effector
+const eeMesh = new THREE.Mesh(
+  new THREE.ConeGeometry(8, 20, 8),
+  new THREE.MeshStandardMaterial({ color: 0xff3366, metalness: .9, roughness: .2 })
+);
+eeMesh.position.y = LINK[NUM] / 2 + 10;
+joints[NUM-1].pivot.add(eeMesh);
+
+// ---- Update 3D from angles ----
+function update3D() {
+  frameN++;
+  for (let i = 0; i < NUM; i++) {
+    const rad = angles[i] * Math.PI / 180;
+    const p   = joints[i].pivot;
+
+    // Alternate axes: even joints = Y (yaw), odd = X (pitch)
+    if (JOINT_AXIS[i] === 'Y') {
+      p.rotation.set(0, rad, 0);
+    } else {
+      p.rotation.set(rad, 0, 0);
+    }
+
+    // Glow when moving
+    const mat = joints[i].jMesh.material;
+    if (moving[i]) {
+      mat.color.setHex(0xff9500);
+      mat.emissive.setHex(0x331a00);
+    } else {
+      mat.color.setHex(0x00e5ff);
+      mat.emissive.setHex(0x003344);
+    }
+  }
+}
+
+// ---- Orbit (manual, no OrbitControls) ----
+let isDrag = false, prevX = 0, prevY = 0;
+let theta = 0.8, phi = 0.5, radius = 700;
+
+canvas.addEventListener('mousedown', e => { isDrag = true; prevX = e.clientX; prevY = e.clientY; });
+window.addEventListener('mouseup',   () => isDrag = false);
+window.addEventListener('mousemove', e => {
+  if (!isDrag) return;
+  theta -= (e.clientX - prevX) * 0.005;
+  phi    = Math.max(0.1, Math.min(1.4, phi - (e.clientY - prevY) * 0.005));
+  prevX = e.clientX; prevY = e.clientY;
+  camera.position.set(
+    radius * Math.sin(theta) * Math.cos(phi),
+    radius * Math.sin(phi),
+    radius * Math.cos(theta) * Math.cos(phi),
+  );
+  camera.lookAt(0, 150, 0);
+});
+
+canvas.addEventListener('wheel', e => {
+  radius = Math.max(200, Math.min(1200, radius + e.deltaY * 0.5));
+  camera.position.set(
+    radius * Math.sin(theta) * Math.cos(phi),
+    radius * Math.sin(phi),
+    radius * Math.cos(theta) * Math.cos(phi),
+  );
+  camera.lookAt(0, 150, 0);
+});
+
+// ---- Render loop ----
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+// ---- Initial REST poll ----
+fetch('/api/arm/status').then(r => r.json()).then(d => {
+  if (d.positions) for (let i = 0; i < NUM; i++) angles[i] = d.positions[i] ?? 0;
+  if (d.moving)    for (let i = 0; i < NUM; i++) moving[i] = d.moving[i] ?? false;
+  updateJointUI(); update3D();
+}).catch(() => {});
+</script>
+
+<script src="/auth_guard.js"></script>
+</body>
+</html>

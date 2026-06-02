@@ -1,0 +1,6 @@
+# Request: الأمر المرسل إلى الـ gripper
+string command   # open, close, stop, reset_count, get_state, get_count
+---
+# Response
+bool success
+string message

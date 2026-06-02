@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ARM CONTROL</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg:      #0a0b0e;
+    --panel:   #0e0f13;
+    --border:  #1a2028;
+    --accent:  #00e5ff;
+    --accent2: #ff6b35;
+    --green:   #b9f61d;
+    --red:     #ff3366;
+    --text:    #c8d6e5;
+    --dim:     #3d4f55;
+    --glow:    0 0 18px rgba(0,229,255,0.25);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── CONNECTION BADGE (في sec-quick) ── */
+  .conn-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  #conn-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background .3s, box-shadow .3s;
+    flex-shrink: 0;
+  }
+  #conn-dot.ok  { background: var(--green); box-shadow: 0 0 7px var(--green); }
+  #conn-dot.err { background: var(--red);   box-shadow: 0 0 7px var(--red);   }
+  #conn-label { font-size: .62rem; letter-spacing: .1em; color: var(--dim); }
+
+  /* ── LAYOUT ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 1px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  section {
+    background: var(--panel);
+    padding: 20px;
+  }
+
+  .sec-title {
+    font-family: 'Orbitron', monospace;
+    font-size: .6rem;
+    letter-spacing: .15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── QUICK CONTROLS ── */
+  #sec-quick { display: flex; flex-direction: column; gap: 8px; }
+
+  .btn {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .06em;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: left;
+  }
+  .btn:hover         { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,.05); }
+  .btn.danger:hover  { border-color: var(--red);    color: var(--red);    background: rgba(255,51,102,.05); }
+  .btn.success:hover { border-color: var(--green);  color: var(--green);  background: rgba(185,246,29,.05); }
+
+  /* ── GLOBAL SA TOGGLE ── */
+  .gsa-box {
+    margin-top: 6px;
+    border: 1px solid var(--border);
+    padding: 12px;
+    transition: border-color .2s;
+  }
+  .gsa-box.on { border-color: rgba(0,229,255,.3); }
+
+  .gsa-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* custom checkbox */
+  .gsa-chk-wrap {
+    width: 18px; height: 18px;
+    border: 1px solid var(--dim);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: border-color .15s, background .15s;
+  }
+  .gsa-box.on .gsa-chk-wrap {
+    border-color: var(--accent);
+    background: rgba(0,229,255,.1);
+  }
+  .gsa-chk-wrap svg { display: none; }
+  .gsa-box.on .gsa-chk-wrap svg { display: block; }
+
+  #global-sa-chk { display: none; }
+
+  .gsa-lbl {
+    font-size: .66rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: color .15s;
+  }
+  .gsa-box.on .gsa-lbl { color: var(--accent); }
+
+  .gsa-inputs {
+    display: none;
+    margin-top: 14px;
+    gap: 8px;
+    flex-direction: column;
+  }
+  .gsa-box.on .gsa-inputs { display: flex; }
+
+  /* ── INPUTS ── */
+  label {
+    display: block;
+    font-size: .6rem;
+    color: var(--dim);
+    margin-bottom: 4px;
+    letter-spacing: .06em;
+  }
+
+  input[type=number], input[type=range] {
+    width: 100%;
+    background: #070a0e;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .76rem;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color .15s, opacity .2s;
+    margin-bottom: 8px;
+  }
+  input[type=number]:focus { border-color: var(--accent); }
+  input[type=number]:disabled {
+    opacity: .28;
+    cursor: not-allowed;
+  }
+  input[type=range] {
+    padding: 4px 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    margin-bottom: 0;
+  }
+
+  /* ── MOTOR GRID ── */
+  #sec-motors { grid-column: 2; overflow-y: auto; }
+
+  .motors-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .motor-card {
+    border: 1px solid var(--border);
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .motor-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .3s;
+  }
+  .motor-card.active::before { transform: scaleX(1); }
+  .motor-card.active { border-color: rgba(0,229,255,.3); }
+
+  .motor-id {
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .motor-pos {
+    font-size: .66rem;
+    color: var(--dim);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .motor-pos .val { font-size: .88rem; color: var(--text); font-weight: 700; }
+
+  .moving-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .moving-dot.on {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .range-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .range-row input[type=range] { flex: 1; }
+  .range-val { font-size: .68rem; min-width: 44px; text-align: right; color: var(--text); }
+
+  /* speed/accel in motor card — fades when global is on */
+  .motor-sa { transition: opacity .2s; }
+  .motor-sa.disabled-sa label { color: rgba(61,79,85,.4); }
+
+  .card-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  .card-btn {
+    padding: 7px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: .6rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .card-btn.move { grid-column: 1 / -1; color: var(--accent); border-color: rgba(0,229,255,.25); }
+  .card-btn.move:hover { background: rgba(0,229,255,.09); border-color: var(--accent); }
+  .card-btn.zero:hover { color: var(--accent2); border-color: var(--accent2); }
+  .card-btn.wait:hover { color: var(--green);   border-color: var(--green);   }
+
+  /* ── LOG PANEL ── */
+  #sec-log { display: flex; flex-direction: column; }
+  #log-box {
+    flex: 1;
+    overflow-y: auto;
+    font-size: .64rem;
+    line-height: 1.7;
+    color: var(--dim);
+    max-height: 600px;
+  }
+  #log-box .entry       { padding: 2px 0; border-bottom: 1px solid #0d1015; }
+  #log-box .entry.tx    { color: var(--accent); }
+  #log-box .entry.rx    { color: var(--green); }
+  #log-box .entry.err   { color: var(--red); }
+  #log-box .entry.info  { color: var(--dim); }
+  .ts { color: #1e2a38; margin-right: 6px; }
+
+  /* ── TOPIC INFO ── */
+  .topic-info {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: .6rem;
+    color: var(--dim);
+    line-height: 1.8;
+  }
+  .topic-info span { color: var(--accent); }
+  .topic-info span.g { color: var(--green); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+
+<body>
+<script src="/nav.js"></script>
+
+<!-- MAIN GRID -->
+<main>
+
+  <!-- ── LEFT: QUICK CONTROLS ── -->
+  <section id="sec-quick">
+
+    <!-- Connection status (بدل ما كانت في الهيدر) -->
+    <div class="conn-row">
+      <div id="conn-dot"></div>
+      <span id="conn-label">CONNECTING…</span>
+    </div>
+
+    <div class="sec-title">⚡ QUICK</div>
+
+    <button class="btn success" onclick="sendCmd('ENABLE')">▶  ENABLE DRIVERS</button>
+    <button class="btn danger"  onclick="sendCmd('DISABLE')">■  DISABLE DRIVERS</button>
+    <button class="btn danger"  onclick="sendCmd('STOP')">✕  STOP ALL</button>
+    <button class="btn"         onclick="sendCmd('STATUS')">◎  REQUEST STATUS</button>
+
+    <!-- ── GLOBAL SPEED & ACCEL TOGGLE ── -->
+    <div class="gsa-box" id="gsa-box">
+      <label class="gsa-check-row" for="global-sa-chk">
+        <div class="gsa-chk-wrap">
+          <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+            <polyline points="1,4.5 4,7.5 10,1" stroke="#00e5ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <input type="checkbox" id="global-sa-chk" onchange="toggleGlobalSA()"/>
+        <span class="gsa-lbl">Global Speed &amp; Accel</span>
+      </label>
+
+      <div class="gsa-inputs" id="gsa-inputs">
+        <div>
+          <label>SPEED — all motors (steps/s)</label>
+          <input type="number" id="g-speed" value="600" step="50" min="0"
+                 oninput="updateGlobalHints()"/>
+        </div>
+        <div>
+          <label>ACCEL — all motors (steps/s²)</label>
+          <input type="number" id="g-accel" value="2000" step="100" min="0"
+                 oninput="updateGlobalHints()"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="topic-info">
+      <div>ROS2 cmd: <span>/arm/cmd</span></div>
+      <div>Status: <span class="g">/arm/status</span></div>
+    </div>
+
+  </section>
+
+  <!-- ── CENTER: MOTOR CARDS ── -->
+  <section id="sec-motors">
+    <div class="sec-title">🦾 MOTORS  (1 – 6)</div>
+    <div class="motors-grid" id="motors-grid"></div>
+  </section>
+
+  <!-- ── RIGHT: LOG ── -->
+  <section id="sec-log">
+    <div class="sec-title">📡 LOG</div>
+    <div id="log-box"></div>
+    <button class="btn" style="margin-top:10px;font-size:.62rem;"
+            onclick="document.getElementById('log-box').innerHTML=''">CLEAR LOG</button>
+  </section>
+
+</main>
+
+<script>
+// ── SOCKET.IO ────────────────────────────────────────────────────
+const socket = io({ 
+  transports: ['websocket'],
+  withCredentials: true   // <-- أضف هذا الخيار
+});
+const dot    = document.getElementById('conn-dot');
+const label  = document.getElementById('conn-label');
+socket.on('connect',    () => { dot.className='ok';  label.textContent='CONNECTED';    log('Connected ✔','info'); });
+socket.on('disconnect', () => { dot.className='err'; label.textContent='DISCONNECTED'; log('Disconnected','err'); });
+
+// ── MOTOR STATE ──────────────────────────────────────────────────
+const NUM = 6;
+let gSpeed = 600, gAccel = 2000;
+const state = {
+  positions: Array(NUM).fill(0),
+  moving:    Array(NUM).fill(false),
+};
+
+// ── BUILD MOTOR CARDS ────────────────────────────────────────────
+const grid = document.getElementById('motors-grid');
+for (let i = 1; i <= NUM; i++) {
+  const card = document.createElement('div');
+  card.className = 'motor-card';
+  card.id = `card-${i}`;
+  card.innerHTML = `
+    <div class="motor-id">M${i}</div>
+    <div class="motor-pos">
+      <div class="moving-dot" id="dot-${i}"></div>
+      <span>POS</span>
+      <span class="val" id="pos-${i}">0.00°</span>
+    </div>
+
+    <label>ANGLE (deg)</label>
+    <div class="range-row">
+      <input type="range" id="range-${i}" min="-180" max="180" value="0"
+             oninput="syncRange(${i},this.value)">
+      <span class="range-val" id="rangeval-${i}">0°</span>
+    </div>
+    <input type="number" id="anginp-${i}" value="0" step="1" placeholder="Angle °"
+           oninput="syncRange(${i},this.value)">
+
+    <div class="motor-sa" id="msa-${i}">
+      <label>SPEED (steps/s)</label>
+      <input type="number" id="spdinp-${i}" value="600" step="50" placeholder="600">
+      <label>ACCEL (steps/s²)</label>
+      <input type="number" id="accinp-${i}" value="2000" step="100" placeholder="2000">
+    </div>
+
+    <div class="card-btns">
+      <button class="card-btn move" onclick="moveMotor(${i})">▶ MOVE</button>
+      <button class="card-btn zero" onclick="zeroMotor(${i})">◎ ZERO</button>
+      <button class="card-btn wait" onclick="moveWait(${i})">⏳ MOVE+WAIT</button>
+    </div>`;
+  grid.appendChild(card);
+
+  document.getElementById(`range-${i}`).addEventListener('input', function () {
+    document.getElementById(`rangeval-${i}`).textContent = this.value + '°';
+    document.getElementById(`anginp-${i}`).value = this.value;
+  });
+}
+
+function syncRange(i, val) {
+  const v = parseFloat(val) || 0;
+  const r = document.getElementById(`range-${i}`);
+  r.value = Math.min(180, Math.max(-180, v));
+  document.getElementById(`rangeval-${i}`).textContent = r.value + '°';
+}
+
+// ── GLOBAL SPEED/ACCEL TOGGLE ────────────────────────────────────
+function toggleGlobalSA() {
+  const on = document.getElementById('global-sa-chk').checked;
+  document.getElementById('gsa-box').className = 'gsa-box' + (on ? ' on' : '');
+
+  for (let i = 1; i <= NUM; i++) {
+    const spdInp = document.getElementById(`spdinp-${i}`);
+    const accInp = document.getElementById(`accinp-${i}`);
+    const msaDiv = document.getElementById(`msa-${i}`);
+    spdInp.disabled = on;
+    accInp.disabled = on;
+    msaDiv.classList.toggle('disabled-sa', on);
+    if (on) updateGlobalHints();
+  }
+}
+
+// عرض القيم الجديدة في الـ motor cards كـ placeholder لما يكون Global مفعّل
+function updateGlobalHints() {
+  const spd = document.getElementById('g-speed').value;
+  const acc = document.getElementById('g-accel').value;
+  for (let i = 1; i <= NUM; i++) {
+    document.getElementById(`spdinp-${i}`).placeholder = spd;
+    document.getElementById(`accinp-${i}`).placeholder = acc;
+  }
+}
+
+// ── STATUS UPDATE ────────────────────────────────────────────────
+function onStatus(data) {
+  const pos = data.positions || [];
+  const mov = data.moving    || [];
+  for (let i = 0; i < NUM; i++) {
+    state.positions[i] = pos[i] ?? 0;
+    state.moving[i]    = mov[i] ?? false;
+    const p = document.getElementById(`pos-${i+1}`);
+    const d = document.getElementById(`dot-${i+1}`);
+    const c = document.getElementById(`card-${i+1}`);
+    if (p) p.textContent = state.positions[i].toFixed(2) + '°';
+    if (d) d.className   = 'moving-dot' + (state.moving[i] ? ' on' : '');
+    if (c) c.className   = 'motor-card' + (state.moving[i] ? ' active' : '');
+  }
+}
+socket.on('arm_status', d => { onStatus(d); if (d.raw) log(d.raw, 'rx'); });
+
+// ── COMMANDS ─────────────────────────────────────────────────────
+function sendCmd(command, motorId=0, angle=0, speed=0, accel=0) {
+  const payload = { command, motor_id: motorId, angle, speed, accel };
+  socket.emit('arm_cmd', payload);
+  log(`→ ${command} M${motorId} ang=${angle} spd=${speed} acc=${accel}`, 'tx');
+  fetch('/api/arm/cmd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',   // <-- أضف هذا السطر
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+function moveMotor(i) {
+  const globalOn = document.getElementById('global-sa-chk').checked;
+  const angle = parseFloat(document.getElementById(`anginp-${i}`).value) || 0;
+  const speed = globalOn
+    ? parseFloat(document.getElementById('g-speed').value) || gSpeed
+    : parseFloat(document.getElementById(`spdinp-${i}`).value) || gSpeed;
+  const accel = globalOn
+    ? parseFloat(document.getElementById('g-accel').value) || gAccel
+    : parseFloat(document.getElementById(`accinp-${i}`).value) || gAccel;
+  sendCmd('MOVE', i, angle, speed, accel);
+}
+
+function zeroMotor(i) { sendCmd('ZERO', i); log(`ZERO M${i}`, 'info'); }
+
+function moveWait(i) {
+  moveMotor(i);
+  const poll = setInterval(() => {
+    fetch('/api/arm/status', { credentials: 'include' }).then(r => r.json()).then(d => {
+      if (d.moving && !d.moving[i-1]) {
+        clearInterval(poll);
+        log(`✓ M${i} reached target`, 'rx');
+      }
+    }).catch(() => clearInterval(poll));
+  }, 200);
+}
+
+// ── LOG ──────────────────────────────────────────────────────────
+const logBox = document.getElementById('log-box');
+function log(msg, cls='info') {
+  const ts  = new Date().toTimeString().slice(0, 8);
+  const el  = document.createElement('div');
+  el.className = `entry ${cls}`;
+  el.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+  logBox.prepend(el);
+  if (logBox.children.length > 200) logBox.removeChild(logBox.lastChild);
+}
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

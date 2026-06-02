@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ARM | System Logs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0e;
+  --bg2:#0e0f13;
+  --bg3:#11131a;
+  --border:rgba(59,73,76,.22);
+  --border2:rgba(59,73,76,.4);
+  --cyan:#00e5ff;
+  --green:#b9f61d;
+  --red:#ff3366;
+  --orange:#ff9500;
+  --text:#c8d6e5;
+  --text2:rgba(186,201,204,.45);
+  --text3:rgba(186,201,204,.18);
+  --mono:'JetBrains Mono',monospace;
+  --gh:'Space Grotesk',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--gh);min-height:100vh}
+.msym{font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 24;font-style:normal;line-height:1;vertical-align:middle;user-select:none}
+
+/* ── HEADER ── */
+.pg-header{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 28px;
+  background:rgba(10,11,14,.97);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  gap:16px;flex-wrap:wrap;
+}
+.pg-title{font-size:.72rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#c3f5ff}
+.pg-sub{font-size:.56rem;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-top:3px;font-family:var(--mono)}
+.hdr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-family:var(--gh);font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn .msym{font-size:15px}
+.btn-cyan{background:rgba(0,229,255,.09);color:var(--cyan);border:1px solid rgba(0,229,255,.22)}
+.btn-cyan:hover{background:rgba(0,229,255,.16);border-color:var(--cyan)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:rgba(0,229,255,.35);color:#c3f5ff}
+.btn-green{background:rgba(185,246,29,.07);color:var(--green);border:1px solid rgba(185,246,29,.18)}
+.btn-green:hover{background:rgba(185,246,29,.13)}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+
+/* ── STATS ── */
+.stats-bar{display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.stat{flex:1;background:var(--bg2);padding:12px 22px}
+.stat-val{font-family:var(--mono);font-size:1.18rem;font-weight:500}
+.stat-lbl{font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text2);margin-top:3px}
+.stat.total .stat-val{color:#c3f5ff}
+.stat.ok    .stat-val{color:var(--green)}
+.stat.chg   .stat-val{color:var(--orange)}
+.stat.err   .stat-val{color:var(--red)}
+
+/* ── TOOLBAR ── */
+.toolbar{
+  display:flex;align-items:center;gap:10px;
+  padding:13px 28px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+  flex-wrap:wrap;
+}
+.search-wrap{position:relative;flex:1;min-width:220px}
+.search-wrap .msym{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text3)}
+.search-inp{
+  width:100%;background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:.76rem;
+  padding:8px 10px 8px 36px;outline:none;transition:border-color .15s;
+}
+.search-inp:focus{border-color:rgba(0,229,255,.45)}
+.search-inp::placeholder{color:var(--text3)}
+.sel{
+  background:var(--bg);border:1px solid var(--border2);
+  color:var(--text2);font-family:var(--gh);font-size:.64rem;
+  letter-spacing:.05em;padding:8px 12px;outline:none;cursor:pointer;
+  transition:border-color .15s;
+}
+.sel:focus{border-color:rgba(0,229,255,.45)}
+.sel option{background:#0d0f14}
+.live-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:7px 13px;border:1px solid var(--border2);
+  cursor:pointer;transition:border-color .15s;user-select:none;
+}
+.live-pill:hover{border-color:rgba(0,229,255,.3)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#2a3840;transition:all .4s;flex-shrink:0}
+.live-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.live-lbl{font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text2)}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;padding:0 28px 32px}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+thead th{
+  font-size:.52rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--text2);padding:9px 12px;text-align:left;
+  border-bottom:1px solid var(--border2);white-space:nowrap;
+}
+tbody tr{border-bottom:1px solid rgba(59,73,76,.07);transition:background .1s}
+tbody tr:hover{background:rgba(0,229,255,.022)}
+td{padding:10px 12px;font-size:.74rem;vertical-align:middle}
+
+.log-id{font-family:var(--mono);font-size:.6rem;color:var(--text3)}
+.ts{font-family:var(--mono);font-size:.66rem;color:var(--text2);white-space:nowrap}
+.ts-ago{font-size:.54rem;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+.u-wrap{display:flex;align-items:center;gap:8px}
+.u-av{width:26px;height:26px;border-radius:50%;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.14);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.56rem;font-weight:700;color:var(--cyan);font-family:var(--mono);letter-spacing:0}
+.u-name{font-family:var(--mono);font-size:.68rem;color:#bac9cc}
+.detail{font-family:var(--mono);font-size:.64rem;color:var(--text2);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ip{font-family:var(--mono);font-size:.6rem;color:var(--text3)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:.55rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-family:var(--gh);white-space:nowrap}
+.b-login   {background:rgba(185,246,29,.06); color:#b9f61d; border:1px solid rgba(185,246,29,.18)}
+.b-logout  {background:rgba(132,147,150,.06);color:#849396; border:1px solid rgba(132,147,150,.18)}
+.b-fail    {background:rgba(255,51,102,.06); color:#ff3366; border:1px solid rgba(255,51,102,.18)}
+.b-create  {background:rgba(0,229,255,.06);  color:#00e5ff; border:1px solid rgba(0,229,255,.18)}
+.b-update  {background:rgba(255,149,0,.06);  color:#ff9500; border:1px solid rgba(255,149,0,.18)}
+.b-delete  {background:rgba(255,51,102,.06); color:#ff3366; border:1px solid rgba(255,51,102,.18)}
+.b-perm    {background:rgba(185,246,29,.04); color:#7ec800; border:1px solid rgba(185,246,29,.12)}
+.b-system  {background:rgba(186,201,204,.04);color:rgba(186,201,204,.5);border:1px solid var(--border2)}
+
+/* ── EMPTY ── */
+.empty{padding:60px;text-align:center;color:var(--text3)}
+.empty .msym{font-size:44px;margin-bottom:14px;display:block;opacity:.35}
+.empty p{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:22px;right:22px;z-index:9999;
+  padding:10px 16px;background:var(--bg3);
+  border-left:2px solid var(--cyan);
+  font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:#c3f5ff;
+  transform:translateY(60px);opacity:0;transition:all .28s;pointer-events:none;
+}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.err{border-color:var(--red);color:var(--red)}
+#toast.ok2{border-color:var(--green);color:var(--green)}
+
+/* ── EXPORT DROPDOWN ── */
+.dd-wrap{position:relative}
+.dd-menu{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--bg3);border:1px solid var(--border2);
+  min-width:150px;z-index:500;padding:4px;
+  display:none;flex-direction:column;gap:2px;
+  box-shadow:0 8px 24px rgba(0,0,0,.6);
+}
+.dd-menu.open{display:flex}
+.dd-opt{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);transition:background .1s}
+.dd-opt:hover{background:rgba(0,229,255,.05);color:#c3f5ff}
+.dd-opt .msym{font-size:15px;color:var(--text3)}
+.dd-opt:hover .msym{color:var(--cyan)}
+
+/* ── PAGINATION ── */
+.pag{display:flex;align-items:center;justify-content:space-between;padding:14px 0;margin-top:4px;border-top:1px solid var(--border)}
+.pag-info{font-family:var(--mono);font-size:.6rem;color:var(--text2)}
+.pag-btns{display:flex;gap:5px}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:#1a2530}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── PRINT ── */
+@media print{
+  @page{size:A4 landscape;margin:12mm 10mm}
+  body{background:#fff!important;color:#111!important;padding-left:0!important;font-size:9pt}
+  #arm-nav,.pg-header,.toolbar,.hdr-actions,.print-hide{display:none!important}
+  .table-wrap{padding:0!important;overflow:visible!important}
+  .print-header{display:block!important}
+  tbody tr:hover{background:none!important}
+  .badge{border:1px solid #ccc!important;color:#333!important;background:#f5f5f5!important}
+  .u-name,.detail,.ip,.ts,.log-id{color:#333!important}
+  .ts-ago{color:#666!important}
+  thead th{color:#444!important;border-color:#bbb!important;background:#f0f0f0!important}
+  tbody tr{border-color:#e8e8e8!important}
+  .stats-bar{background:#e0e0e0!important;gap:2px}
+  .stat{background:#f7f7f7!important;border:1px solid #ddd}
+  .stat-val,.stat-lbl{color:#222!important}
+  .u-av{background:#eee!important;border:1px solid #ccc!important;color:#333!important}
+  .pag{display:none!important}
+  table{font-size:8pt}
+}
+.print-header{display:none;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #111}
+.print-header h1{font-size:14pt;font-weight:700;letter-spacing:.1em}
+.print-header p{font-size:8.5pt;color:#555;margin-top:3px}
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+
+<div class="print-header">
+  <h1>ARM CTRL — SYSTEM LOGS</h1>
+  <p id="print-meta"></p>
+</div>
+
+<!-- HEADER -->
+<div class="pg-header">
+  <div>
+    <div class="pg-title">System Logs</div>
+    <div class="pg-sub" id="log-count-lbl">Loading…</div>
+  </div>
+  <div class="hdr-actions print-hide">
+    <div class="live-pill" id="live-toggle">
+      <div class="live-dot" id="live-dot"></div>
+      <span class="live-lbl" id="live-lbl">LIVE OFF</span>
+    </div>
+    <div class="dd-wrap" id="dl-wrap">
+      <button class="btn btn-green" onclick="toggleDl()">
+        <span class="msym">download</span> Export
+      </button>
+      <div class="dd-menu" id="dl-menu">
+        <div class="dd-opt" onclick="exportCSV()">
+          <span class="msym">table_chart</span>CSV File
+        </div>
+        <div class="dd-opt" onclick="exportJSON()">
+          <span class="msym">data_object</span>JSON File
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-ghost" onclick="printLogs()">
+      <span class="msym">print</span> Print
+    </button>
+    <button class="btn btn-ghost" onclick="clearFilters()" title="Clear filters">
+      <span class="msym">filter_alt_off</span>
+    </button>
+    <button class="btn btn-cyan" onclick="loadLogs()">
+      <span class="msym">refresh</span> Refresh
+    </button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat total"><div class="stat-val" id="s-total">—</div><div class="stat-lbl">Total Entries</div></div>
+  <div class="stat ok">  <div class="stat-val" id="s-ok">—</div>   <div class="stat-lbl">Auth Success</div></div>
+  <div class="stat chg"> <div class="stat-val" id="s-chg">—</div>  <div class="stat-lbl">Changes</div></div>
+  <div class="stat err"> <div class="stat-val" id="s-err">—</div>  <div class="stat-lbl">Failures</div></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar print-hide">
+  <div class="search-wrap">
+    <span class="msym">search</span>
+    <input class="search-inp" id="search-inp" placeholder="Search user, action, detail, IP…" oninput="onSearch()"/>
+  </div>
+  <select class="sel" id="action-filter" onchange="filterTable()">
+    <option value="">All Actions</option>
+    <optgroup label="Auth">
+      <option value="LOGIN">Login</option>
+      <option value="LOGOUT">Logout</option>
+      <option value="LOGOUT_ALL">Logout All</option>
+      <option value="LOGIN_FAIL">Login Failed</option>
+    </optgroup>
+    <optgroup label="Users">
+      <option value="USER_CREATE">User Created</option>
+      <option value="USER_UPDATE">User Updated</option>
+      <option value="USER_DELETE">User Deleted</option>
+      <option value="PERMISSION_SET">Permissions Set</option>
+    </optgroup>
+    <optgroup label="Profile">
+      <option value="PROFILE_UPDATE">Profile Update</option>
+      <option value="PASSWORD_CHANGE">Password Change</option>
+      <option value="AVATAR_UPDATE">Avatar Update</option>
+    </optgroup>
+  </select>
+  <select class="sel" id="limit-sel" onchange="loadLogs()">
+    <option value="200">Last 200</option>
+    <option value="500">Last 500</option>
+    <option value="1000">Last 1000</option>
+  </select>
+  <select class="sel" id="page-size" onchange="filterTable()">
+    <option value="50">50 / page</option>
+    <option value="100" selected>100 / page</option>
+    <option value="250">250 / page</option>
+    <option value="all">Show All</option>
+  </select>
+</div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <table id="logs-table">
+    <thead>
+      <tr>
+        <th style="width:54px">#</th>
+        <th style="width:160px">Timestamp</th>
+        <th style="width:130px">User</th>
+        <th style="width:140px">Action</th>
+        <th>Detail</th>
+        <th style="width:120px">IP Address</th>
+      </tr>
+    </thead>
+    <tbody id="logs-tbody"></tbody>
+  </table>
+  <div class="empty" id="empty-state" style="display:none">
+    <span class="msym">manage_search</span>
+    <p>No log entries found</p>
+  </div>
+  <div class="pag print-hide" id="pag" style="display:none"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let allLogs = [];
+let currentPage = 1;
+let liveInterval = null;
+let liveOn = false;
+let searchTimer = null;
+
+const BADGE = {
+  LOGIN:          { cls:'b-login',  icon:'login',           lbl:'Login'        },
+  LOGOUT:         { cls:'b-logout', icon:'logout',          lbl:'Logout'       },
+  LOGOUT_ALL:     { cls:'b-logout', icon:'logout',          lbl:'Logout All'   },
+  LOGIN_FAIL:     { cls:'b-fail',   icon:'block',           lbl:'Auth Failed'  },
+  USER_CREATE:    { cls:'b-create', icon:'person_add',      lbl:'User Created' },
+  USER_UPDATE:    { cls:'b-update', icon:'edit',            lbl:'User Updated' },
+  USER_DELETE:    { cls:'b-delete', icon:'person_remove',   lbl:'User Deleted' },
+  PERMISSION_SET: { cls:'b-perm',   icon:'key',             lbl:'Permissions'  },
+  PROFILE_UPDATE: { cls:'b-update', icon:'manage_accounts', lbl:'Profile'      },
+  PASSWORD_CHANGE:{ cls:'b-update', icon:'lock_reset',      lbl:'Password'     },
+  AVATAR_UPDATE:  { cls:'b-update', icon:'face',            lbl:'Avatar'       },
+};
+
+// ── Load ──────────────────────────────────────────────────────────
+async function loadLogs() {
+  const limit = document.getElementById('limit-sel').value;
+  document.getElementById('log-count-lbl').textContent = 'Loading…';
+  try {
+    // ✅ إضافة credentials: 'include' لإرسال كوكي الجلسة
+    const r = await fetch('/api/admin/logs?limit=' + limit, { credentials: 'include' });
+    if (r.status === 401) { location.replace('/login'); return; }
+    if (r.status === 403) { location.replace('/denied'); return; }
+    const d = await r.json();
+    if (!d.ok) { toast('Failed to load logs', 'err'); return; }
+    allLogs = d.logs || [];
+    updateStats(allLogs);
+    filterTable();
+  } catch(e) { toast('Network error', 'err'); }
+}
+
+function updateStats(logs) {
+  document.getElementById('s-total').textContent = logs.length;
+  document.getElementById('s-ok').textContent  = logs.filter(l => l.action === 'LOGIN').length;
+  document.getElementById('s-chg').textContent = logs.filter(l =>
+    ['USER_CREATE','USER_UPDATE','USER_DELETE','PERMISSION_SET',
+     'PROFILE_UPDATE','PASSWORD_CHANGE','AVATAR_UPDATE'].includes(l.action)).length;
+  document.getElementById('s-err').textContent = logs.filter(l => l.action === 'LOGIN_FAIL').length;
+}
+
+// ── Filter ────────────────────────────────────────────────────────
+function onSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(filterTable, 180);
+}
+
+function getFiltered() {
+  const q  = (document.getElementById('search-inp').value || '').toLowerCase();
+  const af = document.getElementById('action-filter').value;
+  return allLogs.filter(l => {
+    if (af && l.action !== af) return false;
+    if (!q) return true;
+    return (l.username||'').toLowerCase().includes(q) ||
+           (l.action||'').toLowerCase().includes(q) ||
+           (l.detail||'').toLowerCase().includes(q) ||
+           (l.ip||'').toLowerCase().includes(q);
+  });
+}
+
+function filterTable() {
+  currentPage = 1;
+  const filtered = getFiltered();
+  const ps = document.getElementById('page-size').value;
+  renderTable(filtered, ps === 'all' ? filtered.length : parseInt(ps));
+  const af = document.getElementById('action-filter').value;
+  document.getElementById('log-count-lbl').textContent =
+    filtered.length + ' / ' + allLogs.length + ' entries' +
+    (af ? ' · ' + af : '') +
+    ' · ' + new Date().toLocaleTimeString('en-GB');
+}
+
+function renderTable(logs, pageSize) {
+  const tb  = document.getElementById('logs-tbody');
+  const emp = document.getElementById('empty-state');
+  const pag = document.getElementById('pag');
+
+  if (!logs.length) {
+    tb.innerHTML = ''; emp.style.display = ''; pag.style.display = 'none';
+    return;
+  }
+  emp.style.display = 'none';
+
+  const totalPages = Math.ceil(logs.length / pageSize);
+  if (currentPage > totalPages) currentPage = totalPages;
+  const slice = logs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const now = Date.now();
+
+  tb.innerHTML = slice.map((l, i) => {
+    const b    = BADGE[l.action] || { cls:'b-system', icon:'info', lbl: l.action || '—' };
+    // ✅ التصحيح: الحقل الصحيح من API هو `ts` وليس `created_at`
+    const ts   = l.ts ? new Date(l.ts * 1000) : null;
+    const tsStr = ts ? ts.toLocaleString('en-GB', { hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }) : '—';
+    const ago  = ts ? relTime(now - ts.getTime()) : '';
+    const ini  = (l.username || '?').slice(0, 2).toUpperCase();
+    const det  = l.detail || '—';
+    const rowN = (currentPage - 1) * pageSize + i + 1;
+    return `<tr>
+      <td class="log-id">${String(l.id || rowN).padStart(5,'0')}</td>
+      <td><div class="ts">${esc(tsStr)}</div><div class="ts-ago">${esc(ago)}</div></td>
+      <td><div class="u-wrap"><div class="u-av">${esc(ini)}</div><span class="u-name">${esc(l.username||'—')}</span></div></td>
+      <td><span class="badge ${b.cls}"><span class="msym" style="font-size:13px">${b.icon}</span>${b.lbl}</span></td>
+      <td><div class="detail" title="${esc(det)}">${esc(det)}</div></td>
+      <td class="ip">${esc(l.ip||'—')}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  if (totalPages <= 1) { pag.style.display = 'none'; return; }
+  pag.style.display = 'flex';
+  const p = currentPage;
+  pag.innerHTML = `
+    <span class="pag-info">Page ${p} of ${totalPages} &nbsp;·&nbsp; ${logs.length} entries</span>
+    <div class="pag-btns">
+      <button class="btn btn-ghost" style="padding:5px 9px" onclick="goPage(1)" ${p===1?'disabled':''}>
+        <span class="msym">first_page</span></button>
+      <button class="btn btn-ghost" style="padding:5px 9px" onclick="goPage(${p-1})" ${p===1?'disabled':''}>
+        <span class="msym">chevron_left</span></button>
+      <button class="btn btn-ghost" style="padding:5px 9px" onclick="goPage(${p+1})" ${p===totalPages?'disabled':''}>
+        <span class="msym">chevron_right</span></button>
+      <button class="btn btn-ghost" style="padding:5px 9px" onclick="goPage(${totalPages})" ${p===totalPages?'disabled':''}>
+        <span class="msym">last_page</span></button>
+    </div>`;
+}
+
+function goPage(n) {
+  currentPage = n;
+  const filtered = getFiltered();
+  const ps = document.getElementById('page-size').value;
+  renderTable(filtered, ps === 'all' ? filtered.length : parseInt(ps));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Live refresh ──────────────────────────────────────────────────
+document.getElementById('live-toggle').addEventListener('click', () => {
+  liveOn = !liveOn;
+  document.getElementById('live-dot').className = 'live-dot' + (liveOn ? ' on' : '');
+  document.getElementById('live-lbl').textContent = liveOn ? 'LIVE ON' : 'LIVE OFF';
+  if (liveOn) {
+    liveInterval = setInterval(loadLogs, 10000);
+    toast('Live refresh ON — every 10s', 'ok2');
+  } else {
+    clearInterval(liveInterval);
+    toast('Live refresh OFF');
+  }
+});
+
+// ── Export ────────────────────────────────────────────────────────
+function toggleDl() {
+  document.getElementById('dl-menu').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('dl-wrap').contains(e.target))
+    document.getElementById('dl-menu').classList.remove('open');
+});
+
+function exportCSV() {
+  const logs = getFiltered();
+  const cols = ['id','ts','username','action','detail','ip'];
+  const header = cols.join(',');
+  const rows = logs.map(l =>
+    cols.map(c => {
+      let v = (c === 'ts' && l[c])
+        ? new Date(l[c]*1000).toISOString()
+        : String(l[c] ?? '');
+      return '"' + v.replace(/"/g,'""') + '"';
+    }).join(',')
+  );
+  dl([header,...rows].join('\r\n'), `arm_logs_${stamp()}.csv`, 'text/csv');
+  toast('CSV exported', 'ok2');
+  document.getElementById('dl-menu').classList.remove('open');
+}
+
+function exportJSON() {
+  const logs = getFiltered();
+  const out = { exported: new Date().toISOString(), total: logs.length, logs };
+  dl(JSON.stringify(out, null, 2), `arm_logs_${stamp()}.json`, 'application/json');
+  toast('JSON exported', 'ok2');
+  document.getElementById('dl-menu').classList.remove('open');
+}
+
+function dl(content, filename, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ── Print ─────────────────────────────────────────────────────────
+function printLogs() {
+  const filtered = getFiltered();
+  const af = document.getElementById('action-filter').value;
+  document.getElementById('print-meta').textContent =
+    'Printed: ' + new Date().toLocaleString('en-GB') +
+    '  ·  Entries: ' + filtered.length +
+    '  ·  Filter: ' + (af || 'All Actions');
+  window.print();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function clearFilters() {
+  document.getElementById('search-inp').value = '';
+  document.getElementById('action-filter').value = '';
+  filterTable();
+}
+
+function stamp() {
+  return new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+}
+
+function relTime(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60)    return s + 's ago';
+  if (s < 3600)  return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3000);
+}
+
+loadLogs();
+</script>
+</body>
+</html>

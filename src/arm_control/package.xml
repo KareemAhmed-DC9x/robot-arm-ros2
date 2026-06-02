@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>arm_control</name>
+  <version>1.0.0</version>
+  <description>6-DOF arm ROS2 control — UART bridge + web server</description>
+  <maintainer email="arm@robot.local">Arm Developer</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>arm_interfaces</exec_depend>
+
+  <!-- Python deps (installed via pip) -->
+  <!-- pyserial, flask, flask-socketio -->
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package> 

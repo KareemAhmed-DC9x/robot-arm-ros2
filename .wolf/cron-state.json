@@ -1,0 +1,48 @@
+{
+  "last_heartbeat": "2026-05-13T15:28:20.921Z",
+  "engine_status": "running",
+  "execution_log": [
+    {
+      "task_id": "project-suggestions",
+      "status": "failed",
+      "timestamp": "2026-05-12T18:46:09.292Z",
+      "duration_ms": 10,
+      "error": "Claude CLI not found. Install it from https://claude.ai/download or add it to PATH."
+    },
+    {
+      "task_id": "project-suggestions",
+      "status": "failed",
+      "timestamp": "2026-05-12T18:46:09.804Z",
+      "duration_ms": 7,
+      "error": "Claude CLI not found. Install it from https://claude.ai/download or add it to PATH."
+    },
+    {
+      "task_id": "project-suggestions",
+      "status": "failed",
+      "timestamp": "2026-05-12T18:51:05.058Z",
+      "duration_ms": 7,
+      "error": "Claude CLI not found. Install it from https://claude.ai/download or add it to PATH."
+    },
+    {
+      "task_id": "project-suggestions",
+      "status": "failed",
+      "timestamp": "2026-05-12T20:34:35.613Z",
+      "duration_ms": 7,
+      "error": "Claude CLI not found. Install it from https://claude.ai/download or add it to PATH."
+    },
+    {
+      "task_id": "anatomy-rescan",
+      "status": "success",
+      "timestamp": "2026-05-12T21:00:00.564Z",
+      "duration_ms": 255
+    },
+    {
+      "task_id": "anatomy-rescan",
+      "status": "success",
+      "timestamp": "2026-05-13T15:00:01.062Z",
+      "duration_ms": 436
+    }
+  ],
+  "dead_letter_queue": [],
+  "upcoming": []
+}
