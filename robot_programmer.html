@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM Programmer</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg:        #0a0c0f;
+    --bg2:       #0f1318;
+    --bg3:       #151b22;
+    --bg4:       #1c2530;
+    --border:    #1e2d3d;
+    --border2:   #2a3f55;
+    --accent:    #f5a623;
+    --accent2:   #e8891a;
+    --accentdim: rgba(245,166,35,0.12);
+    --accentglow:rgba(245,166,35,0.25);
+    --blue:      #4a9eff;
+    --green:     #3ddc84;
+    --red:       #ff5252;
+    --purple:    #bb86fc;
+    --ai:        #b9f61d;
+    --text:      #e2e8f0;
+    --text2:     #8b9ab0;
+    --text3:     #4a5568;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Rajdhani', sans-serif;
+    --radius:    6px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* HEADER */
+  header { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:52px; background:var(--bg2); border-bottom:1px solid var(--border); flex-shrink:0; gap:16px; }
+  .logo { display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:13px; font-weight:600; color:var(--accent); letter-spacing:0.1em; }
+  .logo-icon { width:28px; height:28px; background:var(--accentdim); border:1px solid var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .program-name-wrap { display:flex; align-items:center; gap:8px; flex:1; max-width:340px; }
+  .program-name { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); color:var(--text); font-family:var(--mono); font-size:12px; padding:6px 10px; flex:1; outline:none; transition:border-color 0.2s; }
+  .program-name:focus { border-color:var(--accent); }
+  .prog-id-badge { font-family:var(--mono); font-size:10px; color:var(--text3); white-space:nowrap; }
+  .header-actions { display:flex; gap:8px; align-items:center; }
+  .status-bar { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; color:var(--text2); }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:var(--text3); transition:all 0.3s; }
+  .status-dot.running { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1s infinite; }
+  .status-dot.error { background:var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* BUTTONS */
+  .btn { display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--radius); font-family:var(--sans); font-size:13px; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; letter-spacing:0.05em; }
+  .btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border2); }
+  .btn-ghost:hover { background:var(--bg4); color:var(--text); }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover { background:var(--accent2); }
+  .btn-danger { background:var(--red); color:#fff; }
+  .btn-danger:hover { background:#d63636; }
+  .btn-success { background:var(--green); color:#000; }
+  .btn-success:hover { background:#2fc470; }
+  .btn-ai { background:rgba(185,246,29,0.15); color:var(--ai); border:1px solid rgba(185,246,29,0.3); }
+  .btn-ai:hover { background:rgba(185,246,29,0.25); }
+  .btn-ai.on { background:rgba(185,246,29,0.25); border-color:var(--ai); box-shadow:0 0 10px rgba(185,246,29,0.15); }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; }
+  .btn-icon { background:transparent; color:var(--text2); border:1px solid var(--border); width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; border-radius:var(--radius); cursor:pointer; transition:all 0.15s; }
+  .btn-icon:hover { color:var(--text); border-color:var(--border2); background:var(--bg4); }
+  .btn-icon.danger:hover { color:var(--red); border-color:var(--red); }
+
+  /* MAIN */
+  .main { display:flex; flex:1; overflow:hidden; }
+
+  /* PALETTE */
+  .palette { width:200px; flex-shrink:0; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  .palette-title { padding:14px 16px 10px; font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:0.15em; text-transform:uppercase; border-bottom:1px solid var(--border); }
+  .palette-list { padding:12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+  .palette-block { padding:10px 12px; border-radius:var(--radius); cursor:grab; user-select:none; border:1px solid transparent; transition:all 0.15s; display:flex; align-items:center; gap:10px; font-weight:600; font-size:13px; }
+  .palette-block:hover { transform:translateX(3px); }
+  .pb-move    { background:rgba(74,158,255,0.1);  border-color:rgba(74,158,255,0.3);  color:var(--blue); }
+  .pb-wrist   { background:rgba(255,107,53,0.1);  border-color:rgba(255,107,53,0.3);  color:var(--accent2); }
+  .pb-wait    { background:rgba(187,134,252,0.1); border-color:rgba(187,134,252,0.3); color:var(--purple); }
+  .pb-repeat  { background:rgba(245,166,35,0.1);  border-color:rgba(245,166,35,0.3);  color:var(--accent); }
+  .pb-home    { background:rgba(61,220,132,0.1);  border-color:rgba(61,220,132,0.3);  color:var(--green); }
+  .pb-stop    { background:rgba(255,82,82,0.1);   border-color:rgba(255,82,82,0.3);   color:var(--red); }
+  .pb-gripper { background:rgba(0,229,255,0.1);    border-color:rgba(0,229,255,0.3);   color:#00e5ff; }
+  .pb-move:hover    { background:rgba(74,158,255,0.18); }
+  .pb-wrist:hover   { background:rgba(255,107,53,0.18); }
+  .pb-wait:hover    { background:rgba(187,134,252,0.18); }
+  .pb-repeat:hover  { background:rgba(245,166,35,0.18); }
+  .pb-home:hover    { background:rgba(61,220,132,0.18); }
+  .pb-stop:hover    { background:rgba(255,82,82,0.18); }
+  .pb-gripper:hover { background:rgba(0,229,255,0.18); }
+  .palette-icon { font-size:16px; }
+  .palette-help { padding:14px; border-top:1px solid var(--border); font-size:11px; color:var(--text3); font-family:var(--mono); line-height:1.6; margin-top:auto; }
+
+  /* CANVAS */
+  .canvas-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+  .canvas-toolbar { display:flex; align-items:center; gap:8px; padding:10px 16px; background:var(--bg2); border-bottom:1px solid var(--border); flex-shrink:0; }
+  .block-count { margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--text3); }
+  .canvas { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:0; position:relative; }
+  .canvas-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; pointer-events:none; opacity:0.4; }
+  .canvas-empty-icon { font-size:48px; opacity:0.5; }
+  .canvas-empty-text { font-family:var(--mono); font-size:13px; color:var(--text3); text-align:center; line-height:2; }
+
+  /* BLOCKS */
+  .prog-block { display:flex; align-items:stretch; margin-bottom:4px; border-radius:var(--radius); overflow:visible; position:relative; transition:transform 0.15s, opacity 0.15s; cursor:default; }
+  .prog-block.dragging { opacity:0.4; transform:scale(0.98); }
+  .prog-block.drag-over-top    { border-top:2px solid var(--accent); }
+  .prog-block.drag-over-bottom { border-bottom:2px solid var(--accent); }
+  .prog-block.executing { box-shadow:0 0 0 2px var(--green), 0 0 20px rgba(61,220,132,0.2); }
+  .block-stripe { width:4px; flex-shrink:0; border-radius:var(--radius) 0 0 var(--radius); }
+  .block-body { flex:1; background:var(--bg3); border:1px solid var(--border); border-left:none; border-radius:0 var(--radius) var(--radius) 0; padding:10px 12px; display:flex; align-items:center; gap:12px; min-height:60px; transition:background 0.15s, border-color 0.15s; }
+  .prog-block:hover .block-body { background:var(--bg4); border-color:var(--border2); }
+  .prog-block.selected .block-body { border-color:var(--accent); background:var(--accentdim); }
+  .block-num { font-family:var(--mono); font-size:10px; color:var(--text3); width:20px; text-align:right; flex-shrink:0; user-select:none; }
+  .block-icon { font-size:18px; flex-shrink:0; }
+  .block-type-label { font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:0.1em; flex-shrink:0; min-width:50px; }
+  .block-params { flex:1; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .param-chip { display:flex; align-items:center; gap:4px; background:var(--bg); border:1px solid var(--border2); border-radius:4px; padding:3px 8px; font-family:var(--mono); font-size:11px; }
+  .param-label { color:var(--text3); }
+  .param-value { color:var(--text); font-weight:600; }
+  .motor-badge { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; font-weight:700; flex-shrink:0; }
+  .block-actions { display:flex; gap:4px; flex-shrink:0; opacity:0; transition:opacity 0.15s; }
+  .prog-block:hover .block-actions { opacity:1; }
+  .drag-handle { cursor:grab; color:var(--text3); padding:4px; display:flex; align-items:center; font-size:14px; flex-shrink:0; transition:color 0.15s; }
+  .drag-handle:hover { color:var(--text); }
+  .block-connector { width:4px; height:4px; background:var(--border2); border-radius:50%; margin:0 auto 4px; position:relative; left:2px; }
+  .block-connector::before { content:''; position:absolute; left:1px; top:-4px; width:2px; height:4px; background:var(--border); }
+
+  /* PROPERTIES */
+  .props-panel { width:280px; flex-shrink:0; background:var(--bg2); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+  .props-title { padding:14px 16px; font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:0.15em; text-transform:uppercase; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .props-block-type { font-size:11px; font-weight:700; letter-spacing:0.08em; }
+  .props-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:16px; }
+  .props-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--text3); font-family:var(--mono); font-size:12px; text-align:center; padding:20px; }
+  .field-group { display:flex; flex-direction:column; gap:8px; }
+  .field-label { font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:0.1em; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between; }
+  .field-value-display { font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:700; }
+  .field-input { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); color:var(--text); font-family:var(--mono); font-size:13px; padding:8px 10px; width:100%; outline:none; transition:border-color 0.2s; }
+  .field-input:focus { border-color:var(--accent); }
+  .field-input:disabled { opacity:0.35; cursor:not-allowed; }
+  .field-range { -webkit-appearance:none; appearance:none; width:100%; height:4px; background:var(--bg4); border-radius:2px; outline:none; cursor:pointer; }
+  .field-range::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 0 6px var(--accentglow); transition:transform 0.1s; }
+  .field-range::-webkit-slider-thumb:hover { transform:scale(1.2); }
+  .field-range:disabled { opacity:0.35; cursor:not-allowed; }
+  .motor-selector { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; }
+  .motor-btn { aspect-ratio:1; border-radius:4px; border:1px solid var(--border2); background:var(--bg3); color:var(--text2); font-family:var(--mono); font-size:12px; font-weight:700; cursor:pointer; transition:all 0.15s; display:flex; align-items:center; justify-content:center; }
+  .motor-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .motor-btn.active { background:var(--blue); border-color:var(--blue); color:#000; }
+  .divider { height:1px; background:var(--border); }
+
+  /* AI TOGGLE */
+  .ai-toggle-row {
+    display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+    background:rgba(185,246,29,0.05); border:1px solid rgba(185,246,29,0.2);
+    padding:8px 10px; border-radius:var(--radius); transition:all 0.15s;
+  }
+  .ai-toggle-row:hover { background:rgba(185,246,29,0.1); border-color:rgba(185,246,29,0.3); }
+  .ai-toggle-row.on { background:rgba(185,246,29,0.12); border-color:rgba(185,246,29,0.4); }
+  .ai-chk-box { width:16px; height:16px; border:1px solid var(--dim); border-radius:3px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ai-toggle-row.on .ai-chk-box { background:var(--ai); border-color:var(--ai); }
+  .ai-chk-box svg { display:none; }
+  .ai-toggle-row.on .ai-chk-box svg { display:block; }
+  .ai-chk-real { display:none; }
+  .ai-lbl { font-family:var(--mono); font-size:11px; color:var(--text2); font-weight:600; }
+  .ai-toggle-row.on .ai-lbl { color:var(--ai); }
+
+  /* AI BADGE */
+  .ai-chip {
+    font-size:10px; font-family:var(--mono); font-weight:700;
+    background:rgba(185,246,29,0.15); color:var(--ai); border:1px solid rgba(185,246,29,0.3);
+    border-radius:10px; padding:1px 7px; letter-spacing:0.05em;
+  }
+
+  /* RUN BAR */
+  .run-bar { display:flex; align-items:center; gap:12px; padding:12px 20px; background:var(--bg2); border-top:1px solid var(--border); flex-shrink:0; }
+  .run-progress { flex:1; height:4px; background:var(--bg4); border-radius:2px; overflow:hidden; }
+  .run-progress-bar { height:100%; background:var(--green); border-radius:2px; transition:width 0.3s; box-shadow:0 0 8px var(--green); width:0%; }
+  .run-info { font-family:var(--mono); font-size:11px; color:var(--text3); min-width:120px; text-align:right; }
+  .loop-indicator { display:flex; align-items:center; gap:4px; background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); border-radius:4px; padding:2px 7px; font-family:var(--mono); font-size:10px; color:var(--accent); font-weight:700; }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:500; backdrop-filter:blur(4px); }
+  .modal { background:var(--bg2); border:1px solid var(--border2); border-radius:10px; width:480px; max-height:75vh; display:flex; flex-direction:column; overflow:hidden; }
+  .modal-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:0.05em; }
+  .modal-body { padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:8px; }
+  .modal-footer { padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
+
+  /* SAVED ITEM */
+  .saved-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:all 0.15s; }
+  .saved-item:hover { border-color:var(--accent); background:var(--accentdim); }
+  .saved-item-icon { font-size:22px; flex-shrink:0; opacity:0.7; }
+  .saved-item-info { flex:1; min-width:0; }
+  .saved-item-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .saved-item-meta { font-family:var(--mono); font-size:10px; color:var(--text3); margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+  .meta-author { color:var(--blue); font-weight:600; }
+  .meta-date { color:var(--text3); }
+  .saved-item-actions { display:flex; gap:4px; flex-shrink:0; }
+
+  /* TOAST */
+  .toast-container { position:fixed; bottom:80px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:1000; pointer-events:none; }
+  .toast { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:10px 14px; font-family:var(--mono); font-size:12px; display:flex; align-items:center; gap:8px; animation:slideIn 0.2s ease, fadeOut 0.3s ease 2.7s forwards; min-width:220px; }
+  .toast.success { border-color:var(--green); }
+  .toast.error   { border-color:var(--red); }
+  @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+  @keyframes fadeOut { to{opacity:0;transform:translateX(10px)} }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+  /* MOTOR COLORS */
+  .m1 { background:#4a9eff22; color:#4a9eff; border-color:#4a9eff44; }
+  .m2 { background:#3ddc8422; color:#3ddc84; border-color:#3ddc8444; }
+  .m3 { background:#f5a62322; color:#f5a623; border-color:#f5a62344; }
+  .m4 { background:#bb86fc22; color:#bb86fc; border-color:#bb86fc44; }
+  .m5 { background:#ff525222; color:#ff5252; border-color:#ff525244; }
+  .m6 { background:#00bcd422; color:#00bcd4; border-color:#00bcd444; }
+
+  /* LOADING SPINNER */
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* OVERWRITE CONFIRM */
+  .overwrite-banner { background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); border-radius:var(--radius); padding:10px 14px; font-family:var(--mono); font-size:11px; color:var(--accent); display:none; gap:8px; align-items:center; }
+  .overwrite-banner.show { display:flex; }
+
+  /* SEARCH */
+  .search-input { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 12px; width:100%; outline:none; transition:border-color 0.2s; }
+  .search-input:focus { border-color:var(--accent); }
+
+  /* PARALLEL MODE BUTTON */
+  .btn-active { border-color: var(--accent) !important; color: var(--accent) !important; background: rgba(245,166,35,0.08) !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚙</div>
+    ARM·PROG
+  </div>
+  <div class="program-name-wrap">
+    <input class="program-name" id="programName" value="Program_01" spellcheck="false">
+    <span class="prog-id-badge" id="progIdBadge"></span>
+  </div>
+  <div class="header-actions">
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">IDLE</span>
+    </div>
+    <button class="btn btn-ghost" onclick="openSaveModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
+    </button>
+    <button class="btn btn-ghost" onclick="openLoadModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4"/><polyline points="17 9 12 4 7 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
+      Load
+    </button>
+  </div>
+</header>
+
+<div class="main">
+  <!-- PALETTE -->
+  <div class="palette">
+    <div class="palette-title">Block Palette</div>
+    <div class="palette-list">
+      <div class="palette-block pb-move"    draggable="true" ondragstart="paletteDragStart(event,'move')"    onclick="addBlock('move')">    <span class="palette-icon">→</span> MOVE</div>
+      <div class="palette-block pb-wrist"   draggable="true" ondragstart="paletteDragStart(event,'wrist')"   onclick="addBlock('wrist')">   <span class="palette-icon">↕</span> WRIST</div>
+      <div class="palette-block pb-gripper" draggable="true" ondragstart="paletteDragStart(event,'gripper')" onclick="addBlock('gripper')"> <span class="palette-icon">🤏</span> GRIPPER</div>
+      <div class="palette-block pb-wait"    draggable="true" ondragstart="paletteDragStart(event,'wait')"    onclick="addBlock('wait')">    <span class="palette-icon">⏱</span> WAIT</div>
+      <div class="palette-block pb-repeat"  draggable="true" ondragstart="paletteDragStart(event,'repeat')"  onclick="addBlock('repeat')">  <span class="palette-icon">↺</span> REPEAT</div>
+      <div class="palette-block pb-home"    draggable="true" ondragstart="paletteDragStart(event,'home')"    onclick="addBlock('home')">    <span class="palette-icon">⌂</span> HOME ALL</div>
+      <div class="palette-block pb-stop"    draggable="true" ondragstart="paletteDragStart(event,'stop')"    onclick="addBlock('stop')">    <span class="palette-icon">■</span> STOP</div>
+    </div>
+    <div class="palette-help">Click or drag blocks<br>to the canvas →<br><br>Click a block to<br>edit parameters<br><br>🤖 AI toggle per block<br>locks speed & accel</div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap">
+    <div class="canvas-toolbar">
+      <button class="btn btn-ghost" style="font-size:12px" onclick="clearAll()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+        Clear
+      </button>
+      <button class="btn btn-ghost" style="font-size:12px" onclick="duplicateSelected()" id="dupBtn" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Duplicate
+      </button>
+      <span class="block-count" id="blockCount">0 blocks</span>
+    </div>
+    <div class="canvas" id="canvas" ondragover="canvasDragOver(event)" ondrop="canvasDrop(event)" ondragleave="canvasDragLeave(event)">
+      <div class="canvas-empty" id="canvasEmpty">
+        <div class="canvas-empty-icon">⬡</div>
+        <div class="canvas-empty-text">Drop blocks here<br>or click from palette</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTIES -->
+  <div class="props-panel">
+    <div class="props-title">
+      <span>Properties</span>
+      <span class="props-block-type" id="propsBlockType" style="color:var(--text3)">—</span>
+    </div>
+    <div id="propsBody">
+      <div class="props-empty"><span style="font-size:28px;opacity:0.4">◈</span>Select a block to<br>edit its parameters</div>
+    </div>
+  </div>
+</div>
+
+<!-- RUN BAR -->
+<div class="run-bar">
+  <button class="btn btn-success" id="runBtn" onclick="runProgram()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    RUN
+  </button>
+  <button class="btn btn-ghost" id="modeBtn" onclick="toggleParallelMode()" style="font-family:var(--mono);font-size:11px;letter-spacing:0.05em;min-width:100px;">
+    MODE: SEQ
+  </button>
+  <button class="btn btn-danger" id="stopBtn" onclick="stopProgram()" disabled>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    STOP
+  </button>
+  <div class="run-progress"><div class="run-progress-bar" id="progressBar"></div></div>
+  <div class="run-info" id="runInfo">Ready</div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- SAVE MODAL -->
+<div class="modal-overlay" id="saveModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-header">
+      Save Program
+      <button class="btn-icon" onclick="document.getElementById('saveModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <div class="field-label">Program Name</div>
+        <input class="field-input" id="saveNameInput" placeholder="Enter program name…">
+      </div>
+      <div class="overwrite-banner" id="overwriteBanner">
+        ⚠ This will overwrite the existing program with this ID.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="document.getElementById('saveModal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" id="saveBtnConfirm" onclick="saveProgram()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
+        Save to Database
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOAD MODAL -->
+<div class="modal-overlay" id="loadModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="width:520px">
+    <div class="modal-header">
+      Load Program
+      <button class="btn-icon" onclick="document.getElementById('loadModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-body" style="gap:12px">
+      <input class="search-input" id="searchInput" placeholder="🔍  Search programs…" oninput="filterPrograms(this.value)">
+      <div id="savedList" style="display:flex;flex-direction:column;gap:6px;min-height:100px"></div>
+    </div>
+    <div class="modal-footer">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-right:auto" id="programCount"></span>
+      <button class="btn btn-ghost" onclick="document.getElementById('loadModal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  SOCKET.IO
+// ══════════════════════════════════════════════
+const socket = io({ transports: ['websocket'], withCredentials: true });
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let blocks = [];
+let selectedId = null;
+let dragSrcId = null;
+let dragFromPalette = null;
+let isRunning = false;
+let stopRequested = false;
+let blockIdCounter = 0;
+let currentProgramId = null;
+let currentUser = null;
+let allPrograms = [];
+let parallelMode = false;
+let parallelMaxDuration = 0;
+
+// ══════════════════════════════════════════════
+//  AI STATE
+// ══════════════════════════════════════════════
+let aiMotorParams = {};
+const MOTOR_ID_TO_AI_NAME = { 1:'M1', 2:'M3', 3:'M2', 4:'M4', 5:'M5', 6:'M6' };
+
+async function fetchAiParams() {
+  try {
+    const r = await fetch('/api/arm/ai_params', { credentials: 'include' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data && data.motors) {
+      aiMotorParams = {};
+      data.motors.forEach(m => aiMotorParams[m.name] = m);
+    }
+  } catch(e) {}
+}
+setInterval(fetchAiParams, 5000);
+fetchAiParams();
+
+// ══════════════════════════════════════════════
+//  MOTOR LABELS
+// ══════════════════════════════════════════════
+const MOTOR_LABELS = {
+  1: 'M1',
+  2: 'M3',
+  3: 'M2',
+  4: 'Base',
+  5: 'M4',
+  6: 'M5'
+};
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+async function init() {
+  try {
+    const r = await fetch('/api/me');
+    if (r.ok) currentUser = (await r.json());
+  } catch(e) {}
+  render();
+  fetchAiParams();
+}
+
+// ══════════════════════════════════════════════
+//  BLOCK FACTORY
+// ══════════════════════════════════════════════
+function createBlock(type) {
+  const D = {
+    move:    { type:'move',    motor:1, angle:90, speed:600, accel:2000, aiMode:false },
+    wrist:   { type:'wrist',   direction:'up', step:5, speed:600, accel:2000, aiMode:false },
+    gripper: { type:'gripper', action:'open' },
+    wait:    { type:'wait',    duration:1000 },
+    repeat:  { type:'repeat',  times:3 },
+    home:    { type:'home',    speed:600, accel:2000, aiMode:false },
+    stop:    { type:'stop' },
+  };
+  return { id: ++blockIdCounter, ...D[type] };
+}
+
+// ══════════════════════════════════════════════
+//  AI HELPERS
+// ══════════════════════════════════════════════
+function getAiSpeedAccelForMotor(motorId) {
+  const name = MOTOR_ID_TO_AI_NAME[motorId];
+  const p = aiMotorParams[name];
+  if (p) return { speed: p.speed, accel: p.accel };
+  return null;
+}
+
+function getAiSpeedAccelForWrist() {
+  const p5 = aiMotorParams['M5'];
+  const p6 = aiMotorParams['M6'];
+  if (p5 && p6) {
+    return { speed: Math.min(p5.speed, p6.speed), accel: Math.min(p5.accel, p6.accel) };
+  }
+  return null;
+}
+
+function getAiSpeedAccelForHome() {
+  const all = Object.values(aiMotorParams);
+  if (all.length === 0) return null;
+  return { speed: Math.min(...all.map(p=>p.speed)), accel: Math.min(...all.map(p=>p.accel)) };
+}
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function render() {
+  const canvas = document.getElementById('canvas');
+  document.getElementById('canvasEmpty').style.display = blocks.length===0 ? 'flex' : 'none';
+  [...canvas.querySelectorAll('.prog-block,.block-connector')].forEach(e=>e.remove());
+  blocks.forEach((b,i) => {
+    if (i>0) { const c=document.createElement('div'); c.className='block-connector'; canvas.appendChild(c); }
+    canvas.appendChild(renderBlock(b,i));
+  });
+  document.getElementById('blockCount').textContent = `${blocks.length} block${blocks.length!==1?'s':''}`;
+  document.getElementById('dupBtn').disabled = selectedId===null;
+  updatePropsPanel();
+}
+
+function renderBlock(b, idx) {
+  const div = document.createElement('div');
+  div.className = 'prog-block' + (selectedId===b.id ? ' selected' : '');
+  div.dataset.id = b.id;
+  div.draggable = true;
+  div.ondragstart = e => blockDragStart(e, b.id);
+  div.ondragover  = e => blockDragOver(e, b.id);
+  div.ondrop      = e => blockDrop(e, b.id);
+  div.ondragend   = () => { div.classList.remove('dragging'); cleanDragUI(); };
+  div.onclick     = e => { e.stopPropagation(); selectBlock(b.id); };
+  const cfg = blockConfig(b);
+  div.innerHTML = `
+    <div class="block-stripe" style="background:${cfg.color}"></div>
+    <div class="block-body">
+      <div class="block-num">${idx+1}</div>
+      <span class="drag-handle">⠿</span>
+      <span class="block-icon">${cfg.icon}</span>
+      <span class="block-type-label" style="color:${cfg.color}">${cfg.label}</span>
+      <div class="block-params">${cfg.params}</div>
+      <div class="block-actions">
+        <button class="btn-icon" onclick="moveBlock(${b.id},-1);event.stopPropagation()">↑</button>
+        <button class="btn-icon" onclick="moveBlock(${b.id},+1);event.stopPropagation()">↓</button>
+        <button class="btn-icon danger" onclick="deleteBlock(${b.id});event.stopPropagation()">✕</button>
+      </div>
+    </div>`;
+  return div;
+}
+
+function blockConfig(b) {
+  switch(b.type) {
+    case 'move': return { icon:'→', label:'MOVE', color:'#4a9eff', params:`
+      <div class="motor-badge m${b.motor}">${MOTOR_LABELS[b.motor]}</div>
+      <div class="param-chip"><span class="param-label">Angle</span>&nbsp;<span class="param-value">${b.angle}°</span></div>
+      <div class="param-chip"><span class="param-label">Spd</span>&nbsp;<span class="param-value">${b.speed}</span></div>
+      <div class="param-chip"><span class="param-label">Acc</span>&nbsp;<span class="param-value">${b.accel}</span></div>
+      ${b.aiMode ? '<span class="ai-chip">🤖 AI</span>' : ''}`};
+    case 'wrist': return { icon:'↕', label:'WRIST', color:'#ff6b35', params:`
+      <div class="param-chip"><span class="param-label">Dir</span>&nbsp;<span class="param-value">${b.direction.toUpperCase()}</span></div>
+      <div class="param-chip"><span class="param-label">Step</span>&nbsp;<span class="param-value">${b.step}°</span></div>
+      <div class="param-chip"><span class="param-label">Spd</span>&nbsp;<span class="param-value">${b.speed}</span></div>
+      ${b.aiMode ? '<span class="ai-chip">🤖 AI</span>' : ''}`};
+    case 'gripper': return { icon:'🤏', label:'GRIPPER', color:'#00e5ff', params:`
+      <div class="param-chip"><span class="param-label">Action</span>&nbsp;<span class="param-value">${b.action.toUpperCase()}</span></div>`};
+    case 'wait': return { icon:'⏱', label:'WAIT', color:'#bb86fc', params:`<div class="param-chip"><span class="param-label">Duration</span>&nbsp;<span class="param-value">${b.duration}ms</span></div>`};
+    case 'repeat': return { icon:'↺', label:'REPEAT', color:'#f5a623', params:`<div class="loop-indicator">↺ ×${b.times}</div>`};
+    case 'home': return { icon:'⌂', label:'HOME ALL', color:'#3ddc84', params:`
+      <div class="param-chip"><span class="param-label">Spd</span>&nbsp;<span class="param-value">${b.speed}</span></div>
+      <div class="param-chip"><span class="param-label">Acc</span>&nbsp;<span class="param-value">${b.accel}</span></div>
+      ${b.aiMode ? '<span class="ai-chip">🤖 AI</span>' : ''}`};
+    case 'stop': return { icon:'■', label:'STOP', color:'#ff5252', params:`<div class="param-chip" style="color:var(--red)">Emergency stop</div>`};
+    default: return { icon:'?', label:'???', color:'#888', params:'' };
+  }
+}
+
+// ══════════════════════════════════════════════
+//  SELECTION & PROPERTIES
+// ══════════════════════════════════════════════
+function selectBlock(id) { selectedId = (selectedId===id)?null:id; render(); }
+document.getElementById('canvas').addEventListener('click', e => {
+  if (e.target===e.currentTarget||e.target.id==='canvasEmpty') { selectedId=null; render(); }
+});
+
+function updatePropsPanel() {
+  const b = blocks.find(x => x.id === selectedId);
+  const typeEl = document.getElementById('propsBlockType');
+  const body   = document.getElementById('propsBody');
+  if (!b) {
+    typeEl.textContent='—'; typeEl.style.color='var(--text3)';
+    body.innerHTML='<div class="props-empty"><span style="font-size:28px;opacity:0.4">◈</span>Select a block to<br>edit its parameters</div>';
+    return;
+  }
+  const cfg = blockConfig(b);
+  typeEl.textContent=cfg.label; typeEl.style.color=cfg.color;
+
+  let html='<div class="props-body">';
+
+  // ── AI TOGGLE (for move/wrist/home) ──
+  if (b.type==='move' || b.type==='wrist' || b.type==='home') {
+    const aiOn = b.aiMode;
+    html += `
+      <div class="ai-toggle-row ${aiOn ? 'on' : ''}" onclick="toggleBlockAiMode(${b.id})">
+        <div class="ai-chk-box">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="#0a0c0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="ai-lbl">🤖 AI Speed & Accel</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.6;">
+        ${aiOn ? 'Values from AI dashboard. Disable to edit manually.' : 'Enable to lock AI-derived speed & accel.'}
+      </div>
+      <div class="divider"></div>`;
+  }
+
+  if (b.type==='move') {
+    const aiVals = b.aiMode ? getAiSpeedAccelForMotor(b.motor) : null;
+    const spdVal = aiVals ? aiVals.speed : b.speed;
+    const accVal = aiVals ? aiVals.accel : b.accel;
+    const disabled = b.aiMode ? 'disabled' : '';
+
+    html+=`
+      <div class="field-group"><div class="field-label">Motor</div>
+        <div class="motor-selector">${[1,2,3,4,5,6].map(m=>`
+          <div class="motor-btn m${m} ${b.motor===m?'active':''}" onclick="updateBlock(${b.id},'motor',${m})">${MOTOR_LABELS[m]}</div>`).join('')}
+        </div></div>
+      <div class="divider"></div>
+      <div class="field-group">
+        <div class="field-label"><span>Angle (°)</span><span class="field-value-display">${b.angle}°</span></div>
+        <input type="number" class="field-input" value="${b.angle}" min="-360" max="360" oninput="updateBlock(${b.id},'angle',+this.value)" style="text-align:center; width:100%;">
+      </div>
+      <div class="divider"></div>
+      <div class="field-group">
+        <div class="field-label"><span>Speed (steps/s)</span><span class="field-value-display">${spdVal}</span></div>
+        <input type="number" class="field-input" value="${spdVal}" min="50" max="3000" oninput="updateBlock(${b.id},'speed',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      <div class="field-group">
+        <div class="field-label"><span>Acceleration</span><span class="field-value-display">${accVal}</span></div>
+        <input type="number" class="field-input" value="${accVal}" min="100" max="10000" oninput="updateBlock(${b.id},'accel',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      ${b.aiMode ? '<div style="font-family:var(--mono);font-size:10px;color:var(--ai);">🤖 AI params active for ' + MOTOR_LABELS[b.motor] + '</div>' : ''}`;
+  } else if (b.type==='wrist') {
+    const aiVals = b.aiMode ? getAiSpeedAccelForWrist() : null;
+    const spdVal = aiVals ? aiVals.speed : b.speed;
+    const accVal = aiVals ? aiVals.accel : b.accel;
+    const disabled = b.aiMode ? 'disabled' : '';
+
+    html+=`
+      <div class="field-group">
+        <div class="field-label">Direction</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button class="btn ${b.direction==='up'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'direction','up')">⬆ UP</button>
+          <button class="btn ${b.direction==='down'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'direction','down')">⬇ DOWN</button>
+          <button class="btn ${b.direction==='cw'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'direction','cw')">↻ CW</button>
+          <button class="btn ${b.direction==='ccw'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'direction','ccw')">↺ CCW</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="field-group">
+        <div class="field-label"><span>Step (°)</span><span class="field-value-display">${b.step}°</span></div>
+        <input type="number" class="field-input" value="${b.step}" min="1" max="30" oninput="updateBlock(${b.id},'step',+this.value)" style="text-align:center; width:100%;">
+      </div>
+      <div class="divider"></div>
+      <div class="field-group">
+        <div class="field-label"><span>Speed (steps/s)</span><span class="field-value-display">${spdVal}</span></div>
+        <input type="number" class="field-input" value="${spdVal}" min="50" max="3000" oninput="updateBlock(${b.id},'speed',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      <div class="field-group">
+        <div class="field-label"><span>Acceleration</span><span class="field-value-display">${accVal}</span></div>
+        <input type="number" class="field-input" value="${accVal}" min="100" max="10000" oninput="updateBlock(${b.id},'accel',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      <div style="color:var(--text3);font-family:var(--mono);font-size:11px;line-height:1.7">
+        UP/DOWN = M5/M6 pitch<br>CW/CCW = M5/M6 yaw<br>
+        ${b.aiMode ? '<span style="color:var(--ai)">🤖 AI wrist params active</span>' : ''}
+      </div>`;
+  } else if (b.type==='gripper') {
+    html+=`
+      <div class="field-group">
+        <div class="field-label">Action</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button class="btn ${b.action==='open'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'action','open')">Open</button>
+          <button class="btn ${b.action==='close'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'action','close')">Close</button>
+          <button class="btn ${b.action==='stop'?'btn-primary':'btn-ghost'}" style="flex:1;min-width:60px;" onclick="updateBlock(${b.id},'action','stop')">STOP</button>
+        </div>
+      </div>
+      <div style="color:var(--text3);font-family:var(--mono);font-size:11px;line-height:1.7">
+        Sends gripper command via Socket.IO to STM32 bridge.<br>
+        <span style="color:#ff5252">⚠ Inverted: UI "Open" → hardware "Close", vice versa</span>
+      </div>`;
+  } else if (b.type==='wait') {
+    html+=`
+      <div class="field-group">
+        <div class="field-label"><span>Duration (ms)</span><span class="field-value-display">${b.duration}ms</span></div>
+        <input type="range" class="field-range" min="100" max="10000" step="100" value="${b.duration}" oninput="updateBlock(${b.id},'duration',+this.value)" style="accent-color:#bb86fc">
+        <input type="number" class="field-input" value="${b.duration}" min="100" max="60000" oninput="updateBlock(${b.id},'duration',+this.value)" style="text-align:center">
+      </div>
+      <div style="color:var(--text3);font-family:var(--mono);font-size:11px">≈ ${(b.duration/1000).toFixed(1)} seconds</div>`;
+  } else if (b.type==='repeat') {
+    html+=`
+      <div class="field-group">
+        <div class="field-label"><span>Repeat Times</span><span class="field-value-display">×${b.times}</span></div>
+        <input type="range" class="field-range" min="1" max="100" value="${b.times}" oninput="updateBlock(${b.id},'times',+this.value)" style="accent-color:#f5a623">
+        <input type="number" class="field-input" value="${b.times}" min="1" max="9999" oninput="updateBlock(${b.id},'times',+this.value)" style="text-align:center">
+      </div>
+      <div style="color:var(--text3);font-family:var(--mono);font-size:11px;line-height:1.7">Loops all blocks after it<br>until end of program.</div>`;
+  } else if (b.type==='home') {
+    const aiVals = b.aiMode ? getAiSpeedAccelForHome() : null;
+    const spdVal = aiVals ? aiVals.speed : b.speed;
+    const accVal = aiVals ? aiVals.accel : b.accel;
+    const disabled = b.aiMode ? 'disabled' : '';
+
+    html+=`
+      <div class="field-group">
+        <div class="field-label"><span>Speed (steps/s)</span><span class="field-value-display">${spdVal}</span></div>
+        <input type="number" class="field-input" value="${spdVal}" min="50" max="3000" oninput="updateBlock(${b.id},'speed',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      <div class="field-group">
+        <div class="field-label"><span>Acceleration</span><span class="field-value-display">${accVal}</span></div>
+        <input type="number" class="field-input" value="${accVal}" min="100" max="10000" oninput="updateBlock(${b.id},'accel',+this.value)" style="text-align:center; width:100%;" ${disabled}>
+      </div>
+      <div style="color:var(--text3);font-family:var(--mono);font-size:12px;line-height:1.7">
+        Sends all 6 motors to home (0°).<br>In parallel mode, all motors move together.
+        ${b.aiMode ? '<br><span style="color:var(--ai)">🤖 AI conservative params active</span>' : ''}
+      </div>`;
+  } else if (b.type==='stop') {
+    html+=`<div style="color:var(--text3);font-family:var(--mono);font-size:12px;line-height:1.7">Stops all motors<br>immediately.<br><br>Program ends here.</div>`;
+  }
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+function toggleBlockAiMode(id) {
+  const b = blocks.find(x => x.id === id);
+  if (!b) return;
+  b.aiMode = !b.aiMode;
+  
+  if (b.aiMode) {
+    if (b.type === 'move') {
+      const ai = getAiSpeedAccelForMotor(b.motor);
+      if (ai) { b.speed = ai.speed; b.accel = ai.accel; }
+    } else if (b.type === 'wrist') {
+      const ai = getAiSpeedAccelForWrist();
+      if (ai) { b.speed = ai.speed; b.accel = ai.accel; }
+    } else if (b.type === 'home') {
+      const ai = getAiSpeedAccelForHome();
+      if (ai) { b.speed = ai.speed; b.accel = ai.accel; }
+    }
+  }
+  render();
+}
+
+function updateBlock(id, key, val) {
+  const b=blocks.find(x=>x.id===id);
+  if(b){b[key]=val;render();}
+}
+
+// ══════════════════════════════════════════════
+//  BLOCK MANAGEMENT
+// ══════════════════════════════════════════════
+function addBlock(type) { blocks.push(createBlock(type)); selectedId=blocks[blocks.length-1].id; render(); scrollBottom(); }
+function deleteBlock(id) { blocks=blocks.filter(b=>b.id!==id); if(selectedId===id)selectedId=null; render(); }
+function moveBlock(id, dir) {
+  const i=blocks.findIndex(b=>b.id===id), ni=i+dir;
+  if(ni<0||ni>=blocks.length)return;
+  [blocks[i],blocks[ni]]=[blocks[ni],blocks[i]]; render();
+}
+function duplicateSelected() {
+  if(!selectedId)return;
+  const b=blocks.find(x=>x.id===selectedId); if(!b)return;
+  const copy={...JSON.parse(JSON.stringify(b)), id:++blockIdCounter};
+  blocks.splice(blocks.findIndex(x=>x.id===selectedId)+1,0,copy);
+  selectedId=copy.id; render();
+}
+function clearAll() {
+  if(!blocks.length)return;
+  if(!confirm('Clear all blocks?'))return;
+  blocks=[]; selectedId=null; currentProgramId=null;
+  document.getElementById('progIdBadge').textContent='';
+  render();
+}
+function scrollBottom() { const c=document.getElementById('canvas'); setTimeout(()=>c.scrollTop=c.scrollHeight,50); }
+
+// ══════════════════════════════════════════════
+//  DRAG & DROP
+// ══════════════════════════════════════════════
+function paletteDragStart(e,type) { dragFromPalette=type; dragSrcId=null; e.dataTransfer.effectAllowed='copy'; }
+function blockDragStart(e,id) { dragSrcId=id; dragFromPalette=null; e.dataTransfer.effectAllowed='move'; setTimeout(()=>document.querySelector(`.prog-block[data-id="${id}"]`)?.classList.add('dragging'),0); }
+function blockDragOver(e,tid) { e.preventDefault(); e.stopPropagation(); if(dragSrcId===tid)return; cleanDragUI(); const el=document.querySelector(`.prog-block[data-id="${tid}"]`); if(el){const r=el.getBoundingClientRect(),mid=r.top+r.height/2; el.classList.add(e.clientY<mid?'drag-over-top':'drag-over-bottom');} }
+function canvasDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect=dragFromPalette?'copy':'move'; }
+function canvasDragLeave(e) { if(!e.currentTarget.contains(e.relatedTarget))cleanDragUI(); }
+function blockDrop(e,tid) {
+  e.preventDefault(); e.stopPropagation();
+  const el=document.querySelector(`.prog-block[data-id="${tid}"]`);
+  const rect=el?.getBoundingClientRect(); const after=rect&&e.clientY>rect.top+rect.height/2;
+  const ti=blocks.findIndex(b=>b.id===tid);
+  if(dragFromPalette){const nb=createBlock(dragFromPalette);blocks.splice(after?ti+1:ti,0,nb);selectedId=nb.id;}
+  else if(dragSrcId!==null&&dragSrcId!==tid){const si=blocks.findIndex(b=>b.id===dragSrcId);const[m]=blocks.splice(si,1);const nt=blocks.findIndex(b=>b.id===tid);blocks.splice(after?nt+1:nt,0,m);}
+  dragFromPalette=null;dragSrcId=null;cleanDragUI();render();
+}
+function canvasDrop(e) {
+  e.preventDefault();
+  if(dragFromPalette){const nb=createBlock(dragFromPalette);blocks.push(nb);selectedId=nb.id;dragFromPalette=null;render();scrollBottom();}
+}
+function cleanDragUI() { document.querySelectorAll('.prog-block').forEach(el=>el.classList.remove('drag-over-top','drag-over-bottom','dragging')); }
+
+// ══════════════════════════════════════════════
+//  SAVE / LOAD
+// ══════════════════════════════════════════════
+function openSaveModal() {
+  document.getElementById('saveNameInput').value = document.getElementById('programName').value;
+  const banner = document.getElementById('overwriteBanner');
+  banner.classList.toggle('show', currentProgramId !== null);
+  document.getElementById('saveModal').style.display='flex';
+  document.getElementById('saveNameInput').focus();
+}
+
+async function saveProgram() {
+  const name = document.getElementById('saveNameInput').value.trim();
+  if (!name) { toast('Enter a program name', 'error'); return; }
+
+  const btn = document.getElementById('saveBtnConfirm');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Saving…';
+
+  try {
+    const body = { name, blocks };
+    if (currentProgramId) body.id = currentProgramId;
+
+    const r = await fetch('/api/programs', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.message || 'Save failed');
+
+    currentProgramId = data.id;
+    document.getElementById('programName').value = name;
+    document.getElementById('progIdBadge').textContent = `#${data.id}`;
+    document.getElementById('saveModal').style.display = 'none';
+    toast(`Saved: "${name}" #${data.id}`, 'success');
+  } catch(e) {
+    toast('Save error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg> Save to Database';
+  }
+}
+
+async function openLoadModal() {
+  document.getElementById('loadModal').style.display = 'flex';
+  document.getElementById('savedList').innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner" style="width:20px;height:20px;margin:auto"></div></div>';
+  document.getElementById('searchInput').value = '';
+
+  try {
+    const r = await fetch('/api/programs');
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.message);
+    allPrograms = data.programs || [];
+    renderProgramList(allPrograms);
+  } catch(e) {
+    document.getElementById('savedList').innerHTML = `<div style="color:var(--red);font-family:var(--mono);font-size:12px;text-align:center;padding:20px">Error: ${e.message}</div>`;
+  }
+}
+
+function filterPrograms(q) {
+  const filtered = q.trim()
+    ? allPrograms.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || p.username.toLowerCase().includes(q.toLowerCase()))
+    : allPrograms;
+  renderProgramList(filtered);
+}
+
+function renderProgramList(list) {
+  const el = document.getElementById('savedList');
+  document.getElementById('programCount').textContent = `${list.length} program${list.length!==1?'s':''}`;
+
+  if (list.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);font-family:var(--mono);font-size:12px;padding:30px">No programs found</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(p => {
+    const date = new Date(p.updated_at * 1000).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const isOwn = currentUser && (currentUser.id === p.created_by || currentUser.role === 'admin');
+    return `
+    <div class="saved-item" onclick="loadProgram(${p.id})">
+      <div class="saved-item-icon">📋</div>
+      <div class="saved-item-info">
+        <div class="saved-item-name">${escHtml(p.name)}</div>
+        <div class="saved-item-meta">
+          <span class="meta-author">👤 ${escHtml(p.username)}</span>
+          <span class="meta-date">🕐 ${date}</span>
+          <span style="color:var(--text3)">#${p.id}</span>
+        </div>
+      </div>
+      <div class="saved-item-actions" onclick="event.stopPropagation()">
+        ${isOwn ? `<button class="btn-icon danger" title="Delete" onclick="deleteProgram(${p.id},'${escHtml(p.name)}')">✕</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadProgram(id) {
+  try {
+    const r = await fetch(`/api/programs/${id}`);
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.message);
+
+    blocks = data.blocks || [];
+    blockIdCounter = blocks.reduce((m,b)=>Math.max(m,b.id||0),0);
+    selectedId = null;
+    currentProgramId = data.id;
+
+    document.getElementById('programName').value = data.name;
+    document.getElementById('progIdBadge').textContent = `#${data.id}`;
+    document.getElementById('loadModal').style.display = 'none';
+    render();
+    toast(`Loaded: "${data.name}" by ${data.username}`, 'success');
+  } catch(e) {
+    toast('Load error: ' + e.message, 'error');
+  }
+}
+
+async function deleteProgram(id, name) {
+  if (!confirm(`Delete program "${name}"?\nThis cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/programs/${id}`, {method:'DELETE'});
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.message || 'Delete failed');
+    toast(`Deleted: "${name}"`, '');
+    allPrograms = allPrograms.filter(p=>p.id!==id);
+    renderProgramList(allPrograms);
+    if (currentProgramId === id) { currentProgramId=null; document.getElementById('progIdBadge').textContent=''; }
+  } catch(e) {
+    toast('Delete error: ' + e.message, 'error');
+  }
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════
+//  PARALLEL MODE
+// ══════════════════════════════════════════════
+function toggleParallelMode() {
+  parallelMode = !parallelMode;
+  const btn = document.getElementById('modeBtn');
+  if (parallelMode) {
+    btn.textContent = 'MODE: PAR';
+    btn.classList.add('btn-active');
+    toast('Parallel mode ON — motors move together', '');
+  } else {
+    btn.textContent = 'MODE: SEQ';
+    btn.classList.remove('btn-active');
+    toast('Sequential mode ON — step by step', '');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  EXECUTION
+// ══════════════════════════════════════════════
+async function runProgram() {
+  if (!blocks.length) { toast('No blocks to run', 'error'); return; }
+  if (isRunning) return;
+  isRunning=true; stopRequested=false; parallelMaxDuration=0;
+  setStatus('running','RUNNING');
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('stopBtn').disabled=false;
+  document.getElementById('modeBtn').disabled=true;
+  document.getElementById('progressBar').style.width='0%';
+
+  try {
+    await executeBlocks(blocks);
+    if (parallelMode && !stopRequested && parallelMaxDuration > 0) {
+      updateRunInfo(`Waiting motion ${Math.round(parallelMaxDuration)}ms…`);
+      await sleep(parallelMaxDuration);
+    }
+    if (!stopRequested) {
+      setStatus('','DONE'); document.getElementById('progressBar').style.width='100%';
+      toast('Program finished ✓','success');
+      setTimeout(()=>{document.getElementById('progressBar').style.width='0%';setStatus('','IDLE');},2000);
+    }
+  } catch(err) { toast('Error: '+err.message,'error'); setStatus('error','ERROR'); }
+  finally { isRunning=false; document.getElementById('runBtn').disabled=false; document.getElementById('stopBtn').disabled=true; document.getElementById('modeBtn').disabled=false; clearHighlight(); }
+}
+
+async function executeBlocks(list) {
+  const ri = list.findIndex(b=>b.type==='repeat');
+  const main = ri>=0 ? list.slice(0,ri) : list;
+  const after = ri>=0 ? list.slice(ri+1) : [];
+  const rep = ri>=0 ? list[ri].times : 1;
+  const total = ri>=0 ? main.length + after.length*rep : list.length;
+  let done=0;
+  const step = async (b) => {
+    if(stopRequested)return;
+    highlight(b.id);
+    updateRunInfo(`Step ${done+1}/${total}`);
+    await executeOne(b); done++;
+    document.getElementById('progressBar').style.width=Math.round(done/total*100)+'%';
+  };
+  for(const b of main) await step(b);
+  for(let r=0;r<rep;r++){if(stopRequested)break;for(const b of after) await step(b);}
+}
+
+async function executeOne(b) {
+  if(b.type==='move')       await sendMove(b);
+  else if(b.type==='wrist') await sendWrist(b);
+  else if(b.type==='gripper') await sendGripper(b);
+  else if(b.type==='wait')  await sleep(b.duration);
+  else if(b.type==='home')  {
+    const spd = b.speed || 600;
+    const acc = b.accel || 2000;
+    if (parallelMode) {
+      for(let m=1;m<=6;m++){ if(stopRequested)break; await sendMoveCmd({motor:m,angle:0,speed:spd,accel:acc}); await sleep(50); }
+      parallelMaxDuration = Math.max(parallelMaxDuration, 500);
+    } else {
+      for(let m=1;m<=6;m++){ if(stopRequested)break; await sendMove({motor:m,angle:0,speed:spd,accel:acc}); await sleep(300); }
+    }
+  }
+  else if(b.type==='stop')  { await sendStop(); stopRequested=true; }
+}
+
+// ══════════════════════════════════════════════
+//  MOTOR SPEED / ACCEL INVERSE MAPPING
+//  Higher UI value → lower actual speed (more cautious)
+//  Lower UI value  → higher actual speed (more aggressive)
+//  Center point: 250
+// ══════════════════════════════════════════════
+function mapMotorSpeed(uiSpeed) {
+  const center = 250;
+  if (uiSpeed >= center) {
+    // Above 250: decrease actual speed as UI increases
+    // 250→250, 500→205, 1000→175, 9000→100
+    const logRatio = Math.log(uiSpeed / center) / Math.log(36); // 9000/250 = 36
+    return Math.max(50, Math.round(center - logRatio * 150));
+  } else {
+    // Below 250: increase actual speed as UI decreases
+    // 250→250, 100→2065, 50→3000, 10→3000 (clamped)
+    const logRatio = Math.log(center / Math.max(uiSpeed, 1)) / Math.log(25); // 250/10 = 25
+    return Math.min(3000, Math.round(center + logRatio * 2750));
+  }
+}
+
+function mapMotorAccel(uiAccel) {
+  const center = 250;
+  if (uiAccel >= center) {
+    const logRatio = Math.log(uiAccel / center) / Math.log(36);
+    return Math.max(100, Math.round(center - logRatio * 150));
+  } else {
+    const logRatio = Math.log(center / Math.max(uiAccel, 1)) / Math.log(25);
+    return Math.min(6000, Math.round(center + logRatio * 2750));
+  }
+}
+
+async function sendMoveCmd(b) {
+  try {
+    const mappedSpeed = mapMotorSpeed(b.speed || 600);
+    const mappedAccel = mapMotorAccel(b.accel || 2000);
+    await fetch('/api/arm/cmd',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({command:'MOVE',motor_id:b.motor,angle:b.angle,speed:mappedSpeed,accel:mappedAccel})
+    });
+  } catch(e){}
+}
+
+function estimateMoveMs(b) {
+  const mappedSpeed = mapMotorSpeed(b.speed || 600);
+  return Math.min(Math.max(Math.abs(b.angle)/mappedSpeed*1000*200+500,500),5000);
+}
+
+async function sendMove(b) {
+  await sendMoveCmd(b);
+  const est = estimateMoveMs(b);
+  if (parallelMode) {
+    parallelMaxDuration = Math.max(parallelMaxDuration, est);
+    await sleep(50);
+  } else {
+    await sleep(est);
+  }
+}
+
+async function sendWristCmd(b) {
+  const uiSpeed = b.speed || 600;
+  const uiAccel = b.accel || 2000;
+  const mappedSpeed = mapMotorSpeed(uiSpeed);
+  const mappedAccel = mapMotorAccel(uiAccel);
+  const step = b.step || 5;
+  let angle5, angle6;
+  
+  if (b.direction === 'up') {
+    angle5 = +step; angle6 = -step;
+  } else if (b.direction === 'down') {
+    angle5 = -step; angle6 = +step;
+  } else if (b.direction === 'cw') {
+    angle5 = +step; angle6 = +step;
+  } else if (b.direction === 'ccw') {
+    angle5 = -step; angle6 = -step;
+  } else {
+    return;
+  }
+  
+  try {
+    await fetch('/api/arm/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'MOVE',motor_id:5,angle:angle5,speed:mappedSpeed,accel:mappedAccel})});
+    await sleep(50);
+    await fetch('/api/arm/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'MOVE',motor_id:6,angle:angle6,speed:mappedSpeed,accel:mappedAccel})});
+  } catch(e){}
+}
+
+async function sendWrist(b) {
+  await sendWristCmd(b);
+  const mappedSpeed = mapMotorSpeed(b.speed || 600);
+  const est = Math.min(Math.max(Math.abs(b.step||5)/mappedSpeed*1000*200+500,500),5000);
+  if (parallelMode) {
+    parallelMaxDuration = Math.max(parallelMaxDuration, est);
+    await sleep(50);
+  } else {
+    await sleep(est);
+  }
+}
+
+async function sendGripper(b) {
+  try {
+    // Inverted: UI 'open' → hardware 'close', UI 'close' → hardware 'open'
+    const cmd = b.action === 'open' ? 'close' : (b.action === 'close' ? 'open' : b.action);
+    socket.emit('gripper_cmd', { command: cmd });
+  } catch(e) { console.warn('gripper socket error', e); }
+  await sleep(500);
+}
+
+async function sendStop() { try{await fetch('/api/arm/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:'STOP'})});}catch(e){} }
+
+function stopProgram() { stopRequested=true; setStatus('','STOPPED'); toast('Program stopped',''); clearHighlight(); document.getElementById('progressBar').style.width='0%'; document.getElementById('runBtn').disabled=false; document.getElementById('stopBtn').disabled=true; document.getElementById('modeBtn').disabled=false; isRunning=false; }
+function highlight(id) { clearHighlight(); document.querySelector(`.prog-block[data-id="${id}"]`)?.classList.add('executing'); }
+function clearHighlight() { document.querySelectorAll('.prog-block.executing').forEach(e=>e.classList.remove('executing')); }
+function updateRunInfo(t) { document.getElementById('runInfo').textContent=t; }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// ══════════════════════════════════════════════
+//  STATUS & TOAST
+// ══════════════════════════════════════════════
+function setStatus(state,text) {
+  document.getElementById('statusDot').className='status-dot'+(state?' '+state:'');
+  document.getElementById('statusText').textContent=text;
+  if(text==='IDLE'||text==='DONE')updateRunInfo('Ready');
+}
+function toast(msg,type='') {
+  const c=document.getElementById('toastContainer');
+  const t=document.createElement('div');
+  const icon=type==='success'?'✓':type==='error'?'✕':'→';
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span style="color:${type==='success'?'var(--green)':type==='error'?'var(--red)':'var(--accent)'}">${icon}</span> ${msg}`;
+  c.appendChild(t); setTimeout(()=>t.remove(),3100);
+}
+
+// ══════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT')return;
+  if((e.key==='Delete'||e.key==='Backspace')&&selectedId) deleteBlock(selectedId);
+  if(e.key==='Escape')  { selectedId=null; render(); }
+  if(e.key==='F5'||(e.key==='r'&&e.ctrlKey)) { e.preventDefault(); runProgram(); }
+  if(e.key==='Escape'&&isRunning) stopProgram();
+  if(e.key==='d'&&e.ctrlKey) { e.preventDefault(); duplicateSelected(); }
+  if(e.key==='ArrowUp'  &&selectedId) { e.preventDefault(); moveBlock(selectedId,-1); }
+  if(e.key==='ArrowDown'&&selectedId) { e.preventDefault(); moveBlock(selectedId,+1); }
+});
+
+// START
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ARM | Sensor Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0a0b0e; color: #c8d6e5; }
+    .font-mono-custom { font-family: 'JetBrains Mono', monospace; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 20px -12px rgba(0,0,0,0.5); }
+    .glow-text-green { text-shadow: 0 0 6px #b9f61d; }
+    .glow-text-red { text-shadow: 0 0 6px #ff3366; }
+    .pulse-ring { box-shadow: 0 0 0 0 rgba(185,246,29,0.6); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(185,246,29,0.6); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(185,246,29,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(185,246,29,0); } }
+    .scrollbar-thin::-webkit-scrollbar { width: 3px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #0a0b0e; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #1a2530; border-radius: 4px; }
+    /* reset panel styles */
+    .reset-panel {
+      background: #0e0f13;
+      border: 1px solid rgba(59,73,76,0.3);
+      border-radius: 1rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .reset-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .reset-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #b48eff;
+    }
+    .reset-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .reset-btn {
+      background: transparent;
+      border: 1px solid rgba(180,142,255,0.3);
+      color: #b48eff;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .reset-btn:hover {
+      background: rgba(180,142,255,0.1);
+      border-color: #b48eff;
+    }
+    .reset-submit {
+      background: rgba(180,142,255,0.15);
+      border-color: #b48eff;
+      color: #b48eff;
+      font-weight: 600;
+    }
+    .reset-submit:hover {
+      background: rgba(180,142,255,0.3);
+    }
+    .encoder-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .enc-select {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #11131a;
+      border: 1px solid rgba(59,73,76,0.4);
+      padding: 0.3rem 0.7rem;
+      border-radius: 2rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .enc-select.active {
+      border-color: #b48eff;
+      background: rgba(180,142,255,0.08);
+    }
+    .enc-select input {
+      margin: 0;
+      accent-color: #b48eff;
+    }
+    .enc-select label {
+      font-size: 0.7rem;
+      font-family: monospace;
+      cursor: pointer;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0d1015;
+      border-left: 3px solid #b9f61d;
+      padding: 8px 16px;
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: #c3f5ff;
+      z-index: 999;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.error {
+      border-left-color: #ff3366;
+      color: #ff3366;
+    }
+  </style>
+</head>
+<body class="bg-[#0a0b0e] text-[#c8d6e5] antialiased">
+
+<!-- sidebar (nav.js) -->
+<script src="/nav.js"></script>
+
+<!-- main content -->
+<main class="pl-64 pt-16 min-h-screen w-full overflow-y-auto pb-8 pr-6">
+  <div class="max-w-[1400px] mx-auto">
+    <!-- header -->
+    <div class="flex flex-wrap justify-between items-center mb-6 mt-4">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-[#00e5ff] bg-clip-text text-transparent">Sensor Dashboard</h2>
+        <div class="w-16 h-0.5 bg-[#b9f61d] mt-1 rounded-full"></div>
+      </div>
+      <div class="text-right">
+        <p class="text-xs text-[#5a6e74] uppercase tracking-wider">last update</p>
+        <p id="last-update" class="text-sm font-mono text-[#00e5ff]">—</p>
+      </div>
+    </div>
+
+    <!-- encoders grid (6 cards) -->
+    <div class="mb-10">
+      <div class="flex items-center gap-2 mb-4"><span class="material-symbols-outlined text-[#b9f61d]">counter</span><h3 class="text-lg font-semibold">Axis Encoders · Counts</h3></div>
+      <div id="encoders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+    </div>
+
+    <!-- ========== NEW: ENCODER RESET PANEL ========== -->
+    <div class="reset-panel">
+      <div class="reset-header">
+        <span class="reset-title"><span class="material-symbols-outlined align-middle text-sm">restart_alt</span> Reset Encoder Counters</span>
+        <div class="reset-buttons">
+          <button id="reset-select-all" class="reset-btn">Select All</button>
+          <button id="reset-selected" class="reset-btn reset-submit">Reset Selected</button>
+        </div>
+      </div>
+      <div id="encoder-selector" class="encoder-selector">
+        <!-- will be populated via JS -->
+      </div>
+      <div class="text-[11px] text-[#5a6e74] mt-2 italic">Select one or more encoders to reset their pulse count to zero.</div>
+    </div>
+
+    <!-- limit switches grid (8 cards) -->
+    <div class="mb-10">
+      <div class="flex items-center gap-2 mb-4"><span class="material-symbols-outlined text-[#ff3366]">toggle_switch</span><h3 class="text-lg font-semibold">Limit Switches · 8‑Channel</h3></div>
+      <div id="limits-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"></div>
+    </div>
+
+    <!-- gripper + system info row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- gripper card -->
+      <div class="lg:col-span-2 bg-gradient-to-br from-[#0e0f13] to-[#11131a] rounded-2xl border border-white/10 p-5 backdrop-blur-sm">
+        <div class="flex justify-between items-start">
+          <div><p class="text-xs text-[#b9f61d] uppercase tracking-wider">End Effector</p><h3 class="text-2xl font-bold">Gripper G1</h3></div>
+          <div id="gripper-led" class="w-3 h-3 rounded-full bg-[#b9f61d] pulse-ring"></div>
+        </div>
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6 mt-4">
+          <div class="flex items-center justify-center w-36 h-36 rounded-full border-4 border-[#b9f61d]/40 shadow-lg shadow-[#b9f61d]/10">
+            <span id="gripper-state" class="text-3xl font-bold font-mono text-[#b9f61d]">—</span>
+          </div>
+          <div class="text-center md:text-left">
+            <p class="text-[#5a6e74] text-sm uppercase tracking-wide">Pulse Count</p>
+            <p id="gripper-count" class="text-5xl font-mono font-semibold text-white">0</p>
+            <p class="text-xs text-[#5a6e74] mt-2">quadrature encoder · signed</p>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+          <button id="gripper-open" class="flex-1 bg-[#00e5ff]/10 border border-[#00e5ff]/30 text-[#00e5ff] py-2 rounded-lg hover:bg-[#00e5ff]/20 transition">CLOSE</button>
+          <button id="gripper-close" class="flex-1 bg-[#ff3366]/10 border border-[#ff3366]/30 text-[#ff3366] py-2 rounded-lg hover:bg-[#ff3366]/20 transition">OPEN</button>
+          <button id="gripper-stop" class="flex-1 bg-[#b9f61d]/10 border border-[#b9f61d]/30 text-[#b9f61d] py-2 rounded-lg hover:bg-[#b9f61d]/20 transition">STOP</button>
+        </div>
+      </div>
+
+      <!-- system health card -->
+      <div class="bg-[#0e0f13] rounded-2xl border border-white/10 p-5">
+        <div class="flex items-center gap-2 border-b border-white/10 pb-3 mb-4"><span class="material-symbols-outlined text-[#00e5ff]">settings_suggest</span><h3 class="font-semibold">System Integrity</h3></div>
+        <div class="space-y-4">
+          <div class="flex justify-between"><span class="text-[#5a6e74]">ROS2 Bridge</span><span id="health-ros2" class="font-mono text-sm px-2 py-0.5 rounded-full bg-red-500/20 text-[#ff3366]">OFFLINE</span></div>
+          <div class="flex justify-between"><span class="text-[#5a6e74]">STM32 UART</span><span id="health-uart" class="font-mono text-sm px-2 py-0.5 rounded-full bg-red-500/20 text-[#ff3366]">OFFLINE</span></div>
+          <div class="flex justify-between"><span class="text-[#5a6e74]">Host</span><span id="health-host" class="font-mono text-[#c8d6e5]">—</span></div>
+          <div class="flex justify-between"><span class="text-[#5a6e74]">Uptime (system)</span><span id="health-uptime" class="font-mono text-[#c8d6e5]">—</span></div>
+          <div class="pt-2"><div class="w-full bg-black/30 h-1 rounded-full overflow-hidden"><div id="cpu-bar" class="bg-[#b9f61d] h-full w-0 rounded-full transition-all duration-500"></div></div><p class="text-right text-[10px] text-[#5a6e74] mt-1">CPU load <span id="cpu-load">0</span>%</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  const socket = io({ transports: ['websocket'], withCredentials: true });
+  const encoderNames = ['BASE', 'SHOULDER', 'ELBOW', 'WRIST', 'WRIST_ROT', 'TIP'];
+  const limitLabels = ['BASE', 'SHOULDER', 'ELBOW', 'WRIST_P', 'WRIST_R', 'TIP', 'AUX1', 'AUX2'];
+
+  // ----- Toast helper -----
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(window.toastTimer);
+    window.toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // ----- Encoder reset state -----
+  let selectedEncoders = new Set(); // store 1-based indices
+
+  function buildEncoderSelector() {
+    const container = document.getElementById('encoder-selector');
+    container.innerHTML = '';
+    for (let i = 1; i <= 6; i++) {
+      const div = document.createElement('div');
+      div.className = 'enc-select';
+      div.dataset.id = i;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = `enc_chk_${i}`;
+      cb.checked = selectedEncoders.has(i);
+      cb.addEventListener('change', (e) => {
+        if (e.target.checked) selectedEncoders.add(i);
+        else selectedEncoders.delete(i);
+        updateSelectorUI();
+      });
+      const label = document.createElement('label');
+      label.htmlFor = `enc_chk_${i}`;
+      label.textContent = `ENC ${i}`;
+      div.appendChild(cb);
+      div.appendChild(label);
+      container.appendChild(div);
+    }
+  }
+
+  function updateSelectorUI() {
+    for (let i = 1; i <= 6; i++) {
+      const div = document.querySelector(`.enc-select[data-id='${i}']`);
+      const cb = document.getElementById(`enc_chk_${i}`);
+      if (div) {
+        if (selectedEncoders.has(i)) div.classList.add('active');
+        else div.classList.remove('active');
+      }
+      if (cb) cb.checked = selectedEncoders.has(i);
+    }
+  }
+
+  function selectAllEncoders(select) {
+    for (let i = 1; i <= 6; i++) {
+      if (select) selectedEncoders.add(i);
+      else selectedEncoders.delete(i);
+    }
+    updateSelectorUI();
+  }
+
+  async function resetSelectedEncoders() {
+    if (selectedEncoders.size === 0) {
+      showToast('No encoder selected', true);
+      return;
+    }
+    const encoders = Array.from(selectedEncoders);
+    const all = encoders.length === 6;
+    const payload = all ? { all: true } : { encoders: encoders };
+    try {
+      const res = await fetch('/api/encoder/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(`Reset ${all ? 'all encoders' : 'encoders ' + encoders.join(', ')}`);
+        // fetch sensors again to refresh counters immediately
+        fetchSensors();
+      } else {
+        showToast(data.message || 'Reset failed', true);
+      }
+    } catch (err) {
+      showToast('Network error during reset', true);
+    }
+  }
+
+  // ----- Existing functions -----
+  function updateTimestamp() { document.getElementById('last-update').innerText = new Date().toLocaleTimeString(); }
+
+  function renderEncoders(counts) {
+    const grid = document.getElementById('encoders-grid');
+    if (!counts || counts.length < 6) { grid.innerHTML = '<div class="col-span-full text-center text-[#5a6e74]">No encoder data</div>'; return; }
+    grid.innerHTML = counts.map((val, i) => `
+      <div class="bg-[#11131a] rounded-xl border border-white/10 p-4 card-hover">
+        <div class="flex justify-between items-start mb-2">
+          <span class="text-xs font-mono text-[#5a6e74]">AXIS M${i+1}</span>
+          <span class="w-2 h-2 rounded-full ${val !== 0 ? 'bg-[#b9f61d] shadow-sm' : 'bg-[#ff3366] shadow-sm'}"></span>
+        </div>
+        <p class="text-lg font-bold font-mono">${encoderNames[i]}</p>
+        <p class="text-2xl font-mono font-semibold mt-2 tracking-tighter">${val}</p>
+        <p class="text-[10px] text-[#5a6e74] uppercase mt-1">pulse count</p>
+      </div>
+    `).join('');
+  }
+
+  function renderLimits(limits) {
+    const grid = document.getElementById('limits-grid');
+    if (!limits || limits.length < 8) { grid.innerHTML = '<div class="col-span-full text-center text-[#5a6e74]">No limit data</div>'; return; }
+    grid.innerHTML = limits.map((active, i) => `
+      <div class="bg-[#11131a] rounded-xl p-3 border ${active ? 'border-[#ff3366]/60' : 'border-white/10'} transition-all">
+        <div class="flex flex-col items-center text-center">
+          <div class="w-2 h-2 rounded-full ${active ? 'bg-[#ff3366] shadow-sm' : 'bg-[#5a6e74]'} mb-2"></div>
+          <span class="text-xs font-mono text-[#5a6e74]">LS${i+1}</span>
+          <span class="text-sm font-semibold mt-1">${limitLabels[i]}</span>
+          <span class="text-[10px] mt-1 font-mono ${active ? 'text-[#ff3366]' : 'text-[#b9f61d]'}">${active ? 'ACTIVE' : 'INACTIVE'}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function updateGripper(gripper) {
+    if (!gripper) return;
+    const state = gripper.state || 'UNKNOWN';
+    const count = gripper.count ?? 0;
+    document.getElementById('gripper-state').innerText = state;
+    document.getElementById('gripper-count').innerText = count;
+    const led = document.getElementById('gripper-led');
+    if (state === 'OPEN' || state === 'CLOSED') { led.className = 'w-3 h-3 rounded-full bg-[#b9f61d] pulse-ring'; }
+    else if (state === 'OPENING' || state === 'CLOSING') { led.className = 'w-3 h-3 rounded-full bg-[#00e5ff] animate-pulse'; }
+    else { led.className = 'w-3 h-3 rounded-full bg-[#ff3366]'; }
+  }
+
+  function updateHealth(health) {
+    if (health.ros !== undefined) {
+      const rosOnline = health.ros && health.uart;
+      document.getElementById('health-ros2').innerText = rosOnline ? 'ONLINE' : 'OFFLINE';
+      document.getElementById('health-ros2').className = rosOnline ? 'font-mono text-sm px-2 py-0.5 rounded-full bg-green-500/20 text-[#b9f61d]' : 'font-mono text-sm px-2 py-0.5 rounded-full bg-red-500/20 text-[#ff3366]';
+      document.getElementById('health-uart').innerText = health.uart ? 'ONLINE' : 'OFFLINE';
+      document.getElementById('health-uart').className = health.uart ? 'font-mono text-sm px-2 py-0.5 rounded-full bg-green-500/20 text-[#b9f61d]' : 'font-mono text-sm px-2 py-0.5 rounded-full bg-red-500/20 text-[#ff3366]';
+    }
+    if (health.uptime) document.getElementById('health-uptime').innerText = health.uptime;
+    if (health.host) document.getElementById('health-host').innerText = health.host;
+    if (health.cpu_load !== undefined) {
+      const load = Math.min(100, Math.max(0, health.cpu_load));
+      document.getElementById('cpu-load').innerText = load;
+      document.getElementById('cpu-bar').style.width = load + '%';
+    }
+  }
+
+  async function fetchSensors() {
+    try {
+      const res = await fetch('/api/sensors/all', { credentials: 'include' });
+      const json = await res.json();
+      if (json.ok) {
+        renderEncoders(json.encoders);
+        renderLimits(json.limits);
+        updateGripper(json.gripper);
+        updateTimestamp();
+      }
+    } catch (e) { console.warn(e); }
+  }
+
+  async function fetchHealth() {
+    try {
+      const res = await fetch('/api/health', { credentials: 'include' });
+      const json = await res.json();
+      if (json.ok) updateHealth(json);
+    } catch (e) { console.warn(e); }
+  }
+
+  // Gripper commands via Socket.IO
+  function sendGripperCmd(cmd) {
+    socket.emit('gripper_cmd', { command: cmd });
+  }
+
+  socket.on('connect', () => console.log('SocketIO connected for gripper'));
+  socket.on('disconnect', () => console.log('SocketIO disconnected'));
+
+  // Buttons
+  document.getElementById('gripper-open').onclick = () => sendGripperCmd('open');
+  document.getElementById('gripper-close').onclick = () => sendGripperCmd('close');
+  document.getElementById('gripper-stop').onclick = () => sendGripperCmd('stop');
+
+  // Reset panel buttons
+  document.getElementById('reset-select-all').onclick = () => {
+    selectAllEncoders(true);
+  };
+  document.getElementById('reset-selected').onclick = () => {
+    resetSelectedEncoders();
+  };
+
+  // Initialization
+  buildEncoderSelector();
+  fetchSensors();
+  fetchHealth();
+  setInterval(fetchSensors, 1000);
+  setInterval(fetchHealth, 5000);
+</script>
+</body>
+</html>

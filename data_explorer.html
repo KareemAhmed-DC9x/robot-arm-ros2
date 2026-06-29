@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARM | Dataset Explorer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+        :root { --bg: #0a0b0e; --panel: #0e0f13; --border: #1a2028; --accent: #00e5ff; --green: #b9f61d; --red: #ff3366; --yellow: #ffd700; --text: #c8d6e5; --dim: #3d4f55; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; min-height: 100vh; padding: 24px; }
+        .wrap { max-width: 1400px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        header h1 { font-family: 'Orbitron', monospace; font-size: 1.2rem; color: var(--accent); letter-spacing: 0.12em; }
+        header .sub { font-size: .7rem; color: var(--dim); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .stat-card { background: var(--panel); border: 1px solid var(--border); padding: 16px; text-align: center; }
+        .stat-card .label { font-size: .6rem; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+        .stat-card .value { font-family: 'Orbitron', monospace; font-size: 1.5rem; color: var(--accent); margin-top: 6px; }
+        .section-title { font-family: 'Orbitron', monospace; font-size: .7rem; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin: 24px 0 12px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .table-wrap { background: var(--panel); border: 1px solid var(--border); overflow-x: auto; max-height: 420px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: .7rem; }
+        th { background: #0c0d11; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; padding: 10px 12px; text-align: left; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border); }
+        td { padding: 8px 12px; border-bottom: 1px solid rgba(26,32,40,0.4); font-family: 'Space Mono', monospace; }
+        td.num { text-align: right; }
+        tr:hover td { background: rgba(0,229,255,0.03); }
+        .stats-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .col-stats { background: var(--panel); border: 1px solid var(--border); padding: 14px; }
+        .col-stats .col-name { font-weight: 700; color: var(--accent); font-size: .75rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; }
+        .col-stats .row { display: flex; justify-content: space-between; font-size: .65rem; padding: 3px 0; }
+        .col-stats .row .lbl { color: var(--dim); }
+        .col-stats .row .val { color: var(--text); }
+        .btn-download { display: inline-block; margin-top: 12px; padding: 10px 18px; border: 1px solid var(--border); background: transparent; color: var(--text); font-family: 'Space Mono', monospace; font-size: .7rem; cursor: pointer; transition: all .15s; text-decoration: none; }
+        .btn-download:hover { border-color: var(--green); color: var(--green); }
+        .loader { text-align: center; padding: 40px; color: var(--dim); }
+        .error-msg { background: rgba(255,51,102,0.1); border: 1px solid var(--red); padding: 12px; color: var(--red); margin-bottom: 16px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .5rem; background: rgba(0,229,255,0.1); color: var(--accent); margin-left: 6px; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        @media (max-width: 600px) { body { padding: 12px; } .stats-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <div><h1>📊 Dataset Explorer</h1><div class="sub">Torque AI Training Data</div></div>
+        <div style="font-size:.7rem;color:var(--dim)"><a href="/">← Back to Control</a></div>
+    </header>
+
+    <div id="app">
+        <div class="loader">Loading dataset statistics...</div>
+    </div>
+</div>
+
+<script>
+const app = document.getElementById('app');
+
+async function loadData() {
+    try {
+        const res = await fetch('/api/dataset/stats', { credentials: 'include' });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Failed to load');
+        }
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Unknown error');
+        render(data);
+    } catch (e) {
+        app.innerHTML = `<div class="error-msg">⚠ Error: ${e.message}</div>`;
+    }
+}
+
+function render(data) {
+    const stats = data;
+    const cols = stats.columns || [];
+    const colStats = stats.column_stats || {};
+    const sample = stats.sample || [];
+    const rowCount = stats.row_count || 0;
+    const fileSize = stats.file_size_mb || 0;
+
+    let html = `
+        <div class="stats-grid">
+            <div class="stat-card"><div class="label">Total Rows</div><div class="value">${rowCount.toLocaleString()}</div></div>
+            <div class="stat-card"><div class="label">Columns</div><div class="value">${cols.length}</div></div>
+            <div class="stat-card"><div class="label">File Size</div><div class="value">${fileSize} MB</div></div>
+            <div class="stat-card"><div class="label">Sample Preview</div><div class="value">${Math.min(sample.length, 50)} rows</div></div>
+        </div>
+
+        <div class="section-title">📐 Column Statistics (Torque & Features)</div>
+        <div class="stats-detail">
+    `;
+
+    // عرض إحصائيات كل عمود (نركز على أعمدة العزم ولكن نعرض الكل)
+    cols.forEach(col => {
+        const s = colStats[col] || { count: 0, mean: '-', std: '-', min: '-', max: '-' };
+        const isTorque = col.toLowerCase().includes('torque');
+        html += `
+            <div class="col-stats" style="${isTorque ? 'border-left: 2px solid var(--accent);' : ''}">
+                <div class="col-name">${col} ${isTorque ? '<span class="badge">TARGET</span>' : ''}</div>
+                <div class="row"><span class="lbl">Count</span><span class="val">${s.count}</span></div>
+                <div class="row"><span class="lbl">Mean</span><span class="val">${s.mean !== null && s.mean !== undefined ? s.mean : '—'}</span></div>
+                <div class="row"><span class="lbl">Std Dev</span><span class="val">${s.std !== null && s.std !== undefined ? s.std : '—'}</span></div>
+                <div class="row"><span class="lbl">Min</span><span class="val">${s.min !== null && s.min !== undefined ? s.min : '—'}</span></div>
+                <div class="row"><span class="lbl">Max</span><span class="val">${s.max !== null && s.max !== undefined ? s.max : '—'}</span></div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+
+    // عرض العينة (جدول)
+    html += `<div class="section-title">🔍 Sample Data (first ${sample.length} rows)</div>`;
+    if (sample.length > 0) {
+        const headers = Object.keys(sample[0]);
+        html += `<div class="table-wrap"><table><thead><tr>`;
+        headers.forEach(h => html += `<th>${h}</th>`);
+        html += `</tr></thead><tbody>`;
+        sample.forEach(row => {
+            html += `<tr>`;
+            headers.forEach(h => {
+                const val = row[h] || '';
+                const isNum = !isNaN(parseFloat(val)) && isFinite(val);
+                html += `<td class="${isNum ? 'num' : ''}">${val}</td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+    } else {
+        html += `<div style="color:var(--dim);padding:12px;">No sample data available.</div>`;
+    }
+
+    // زر تحميل الملف الكامل
+    html += `
+        <div style="margin-top:20px;">
+            <a href="/api/dataset/download" class="btn-download" target="_blank">⬇ Download Full Dataset (CSV)</a>
+            <span style="font-size:.6rem;color:var(--dim);margin-left:12px;">~ ${rowCount.toLocaleString()} rows</span>
+        </div>
+    `;
+
+    // إضافة زر تنزيل إضافي لـ CSV
+    app.innerHTML = html;
+}
+
+// بدء التحميل
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Access Denied | 403 Forbidden</title>
+    <!-- Google Fonts + Font Awesome 6 (Professional Icons) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* subtle professional anti-select, but not intrusive */
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: #0b0e17;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow-x: hidden;
+            padding: 1.5rem;
+        }
+
+        /* Premium animated gradient background with depth */
+        body::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(37, 99, 235, 0.12), rgba(2, 6, 23, 0.9)),
+                        repeating-linear-gradient(45deg, rgba(255,255,255,0.01) 0px, rgba(255,255,255,0.01) 2px, transparent 2px, transparent 8px);
+            z-index: 0;
+        }
+
+        /* animated glowing orbs (extreme premium vibe) */
+        body::after {
+            content: "";
+            position: absolute;
+            width: 70vmax;
+            height: 70vmax;
+            background: radial-gradient(circle, rgba(59,130,246,0.18) 0%, rgba(0,0,0,0) 70%);
+            top: -20%;
+            left: -20%;
+            border-radius: 50%;
+            z-index: 0;
+            animation: slowDrift 24s infinite alternate ease-in-out;
+        }
+
+        @keyframes slowDrift {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translate(8%, 6%) scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        /* second floating element */
+        .orb-secondary {
+            position: absolute;
+            width: 50vmax;
+            height: 50vmax;
+            background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, rgba(0,0,0,0) 70%);
+            bottom: -15%;
+            right: -15%;
+            border-radius: 50%;
+            z-index: 0;
+            animation: slowDriftReverse 28s infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes slowDriftReverse {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.4;
+            }
+            100% {
+                transform: translate(-6%, -8%) scale(1.3);
+                opacity: 0.7;
+            }
+        }
+
+        /* Glassmorphism card - premium translucent depth */
+        .access-card {
+            position: relative;
+            z-index: 10;
+            max-width: 480px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.68);
+            backdrop-filter: blur(14px) saturate(180%);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(71, 85, 105, 0.3) inset, 0 0 0 1px rgba(255,255,255,0.02) inset;
+            padding: 2.2rem 2rem 2.5rem;
+            transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1), box-shadow 0.4s ease;
+        }
+
+        .access-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 35px 55px -18px black, 0 0 0 1px rgba(59,130,246,0.2) inset;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        /* icon container */
+        .icon-shield {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1));
+            width: 90px;
+            height: 90px;
+            border-radius: 40px;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .icon-shield i {
+            font-size: 3.5rem;
+            color: #f87171;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+        }
+
+        /* typography */
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff, #e2e8f0);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .badge-error {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            backdrop-filter: blur(4px);
+            padding: 0.25rem 0.9rem;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: #fca5a5;
+            border: 0.5px solid rgba(239,68,68,0.5);
+            margin-top: 0.25rem;
+        }
+
+        .status-code {
+            font-family: monospace;
+            font-weight: 600;
+            background: #0f172a80;
+            padding: 0.2rem 0.9rem;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            display: inline-block;
+            backdrop-filter: blur(2px);
+        }
+
+        .desc-text {
+            color: #cbd5e6;
+            font-weight: 400;
+            line-height: 1.55;
+            margin: 1.25rem 0 0.8rem 0;
+            font-size: 1rem;
+        }
+
+        .alert-detail {
+            background: rgba(0, 0, 0, 0.35);
+            border-left: 3px solid #f97316;
+            padding: 0.9rem 1rem;
+            border-radius: 1rem;
+            margin: 1.5rem 0 1rem;
+            font-size: 0.85rem;
+            color: #b9c3da;
+            text-align: left;
+        }
+
+        .reference-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 60px;
+            padding: 0.6rem 1rem;
+            margin: 1.2rem 0 0.9rem;
+            font-size: 0.75rem;
+            font-family: 'SF Mono', 'Inter monospace', monospace;
+            border: 0.5px solid rgba(255,255,255,0.05);
+        }
+
+        .ref-id {
+            color: #a5b4fc;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .timestamp {
+            color: #6c7a91;
+            font-size: 0.7rem;
+        }
+
+        /* button group - professional dual action */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 0.85rem 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            font-family: 'Inter', system-ui;
+            backdrop-filter: blur(2px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(105deg, #3b82f6, #2563eb);
+            color: white;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+            border: 0.5px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(105deg, #2563eb, #1d4ed8);
+            transform: scale(1.02);
+            box-shadow: 0 12px 20px -8px #1e3a8a;
+        }
+
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: rgba(59, 130, 246, 0.6);
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* fine print link */
+        .help-link {
+            text-align: center;
+            margin-top: 1.8rem;
+            font-size: 0.75rem;
+        }
+
+        .help-link a {
+            color: #7e9cf0;
+            text-decoration: none;
+            border-bottom: 1px dotted #4f6fbf;
+            transition: 0.2s;
+        }
+
+        .help-link a:hover {
+            color: #a5c0ff;
+            border-bottom-color: #a5c0ff;
+        }
+.available-box {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: rgba(59,130,246,0.08);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 1rem;
+}
+
+.access-item {
+    padding: 0.7rem 1rem;
+    background: rgba(15,23,42,0.6);
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #cbd5e6;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.access-item:hover {
+    background: rgba(59,130,246,0.15);
+    transform: translateX(4px);
+}
+        /* responsive adjustments */
+        @media (max-width: 500px) {
+            .access-card {
+                padding: 1.8rem 1.5rem 2rem;
+            }
+            h1 {
+                font-size: 1.9rem;
+            }
+            .icon-shield {
+                width: 70px;
+                height: 70px;
+            }
+            .icon-shield i {
+                font-size: 2.5rem;
+            }
+            .btn {
+                padding: 0.7rem 0;
+                font-size: 0.85rem;
+            }
+            .button-group {
+                gap: 0.8rem;
+            }
+        }
+
+        /* subtle focus ring for accessibility */
+        .btn:focus-visible {
+            outline: 2px solid #60a5fa;
+            outline-offset: 2px;
+        }
+
+        /* blink free security glow */
+        @keyframes softPulse {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="orb-secondary"></div>
+
+<div class="access-card">
+    <div style="text-align: center;">
+        <div class="icon-shield">
+            <i class="fas fa-shield-haltered"></i>
+        </div>
+        <div style="display: flex; justify-content: center; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+            <h1>Access Denied</h1>
+            <span class="badge-error"><i class="fas fa-ban" style="font-size: 0.7rem;"></i> 403 Forbidden</span>
+        </div>
+        <div class="status-code">
+            <i class="fas fa-lock" style="margin-right: 6px;"></i> RESTRICTED ZONE
+        </div>
+    </div>
+
+    <p class="desc-text">
+        <i class="fas fa-exclamation-triangle" style="color: #f97316; margin-right: 8px;"></i> 
+        You don't have sufficient permissions to access this resource. The server has denied access due to authentication restrictions or invalid credentials.
+    </p>
+
+    <div class="alert-detail">
+        <i class="fas fa-terminal" style="margin-right: 10px; opacity: 0.8;"></i> 
+        <strong>Security Notice</strong><br>
+        This incident has been recorded. If you believe this is an error, please verify your session or contact the system administrator.
+    </div>
+
+    <!-- Professional dynamic reference ID + timestamp -->
+    <div class="reference-row">
+        <span><i class="fas fa-fingerprint"></i> <span class="ref-id" id="refId">--</span></span>
+        <span><i class="far fa-clock"></i> <span class="timestamp" id="timestampId">--</span></span>
+    </div>
+
+    <!-- Dual action buttons with enhanced fallback -->
+    <div class="button-group">
+        <button class="btn btn-primary" id="goBackBtn">
+            <i class="fas fa-arrow-left"></i> Go Back
+        </button>
+        <button class="btn btn-secondary" id="homeBtn">
+            <i class="fas fa-home"></i> Homepage
+        </button>
+    </div>
+    <!-- AVAILABLE ACCESS SECTION -->
+    <div class="available-box">
+    <h3 style="color:#93c5fd; margin-top: 2rem;">
+        <i class="fas fa-unlock"></i> You can access
+    </h3>
+
+    <div id="accessList" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 10px;">
+        <!-- JS will fill this -->
+    </div>
+    </div>
+
+    <div class="help-link">
+        <a href="#" id="contactSupportTrigger"><i class="fas fa-envelope"></i> Report issue / Contact support</a>
+    </div>
+</div>
+<script>
+/* =========================================================
+   FETCH DATA & BUILD ACCESS LIST
+========================================================= */
+async function loadAccessList() {
+    try {
+        // جلب بيانات المستخدم الحالي وصلاحياته
+        const response = await fetch('/api/me');
+        const data = await response.json();
+        
+        if (!data.ok) return;
+
+        const permissions = data.permissions || []; 
+        const role = data.role;
+        const accessListEl = document.getElementById("accessList");
+        
+        // خريطة الصفحات
+        const pagesMap = [
+            { id: 'control', name: "Control Panel", url: "/", icon: "fa-gamepad" },
+            { id: 'monitor', name: "System Monitor", url: "/monitor", icon: "fa-desktop" },
+            { id: 'account', name: "My Account", url: "/account", icon: "fa-user-circle" },
+            { id: 'logs',    name: "System Logs", url: "/logs", icon: "fa-history" },
+            { id: 'admin',   name: "Admin Panel", url: "/admin", icon: "fa-user-shield" }
+        ];
+
+        accessListEl.innerHTML = ""; 
+
+        // 1. عرض الصلاحيات الحالية للمستخدم (System Privileges)
+        renderUserPrivileges(role, permissions);
+
+        // 2. بناء قائمة الصفحات المسموحة
+        pagesMap.forEach(page => {
+            let hasAccess = false;
+            if (page.id === 'account') {
+                hasAccess = true; 
+            } else if (page.id === 'admin' || page.id === 'logs') {
+                hasAccess = (role === 'admin'); 
+            } else {
+                hasAccess = permissions.includes(page.id); 
+            }
+
+            if (hasAccess) {
+                const div = document.createElement("div");
+                div.className = "access-item";
+                div.onclick = () => window.location.href = page.url;
+                div.innerHTML = `
+                    <span><i class="fas ${page.icon}" style="margin-right:10px; color:#60a5fa;"></i> ${page.name}</span>
+                    <i class="fas fa-chevron-right" style="font-size:0.8rem; opacity:0.5;"></i>
+                `;
+                accessListEl.appendChild(div);
+            }
+        });
+    } catch (err) {
+        console.error("Error loading system data:", err);
+    }
+}
+
+/**
+ * وظيفة جديدة لعرض الرتبة والصلاحيات المسجلة في النظام حالياً
+ */
+function renderUserPrivileges(role, permissions) {
+    const alertDetail = document.querySelector(".alert-detail");
+    if (!alertDetail) return;
+
+    // تحويل مصفوفة الصلاحيات إلى نص مقروء بستايل Badges
+    const permsHtml = permissions.length > 0 
+        ? permissions.map(p => `<span style="background:rgba(96,165,250,0.2); padding:2px 8px; border-radius:4px; font-size:10px; margin-right:4px;">${p.toUpperCase()}</span>`).join('')
+        : '<span style="color:#ef4444;">NONE</span>';
+
+    alertDetail.innerHTML = `
+        <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+            <i class="fas fa-id-badge" style="margin-right: 10px; color: #f97316;"></i> 
+            <strong>Active Role:</strong> <span style="color:#fff; text-transform:uppercase;">${role}</span>
+        </div>
+        <div>
+            <i class="fas fa-key" style="margin-right: 10px; color: #f97316;"></i> 
+            <strong>System Permissions:</strong><br>
+            <div style="margin-top:8px;">${permsHtml}</div>
+        </div>
+    `;
+}
+
+/* =========================================================
+   NAVIGATION & INITIALIZATION
+========================================================= */
+function setupNavigation() {
+    const backBtn = document.getElementById("goBackBtn");
+    const homeBtn = document.getElementById("homeBtn");
+
+    if (backBtn) {
+        backBtn.addEventListener("click", () => {
+            if (document.referrer && !document.referrer.includes('/login')) {
+                window.history.back();
+            } else {
+                window.location.href = "/account";
+            }
+        });
+    }
+
+    if (homeBtn) {
+        homeBtn.innerHTML = '<i class="fas fa-user-circle"></i> My Account';
+        homeBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            window.location.href = "/account";
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAccessList();
+    setupNavigation();
+    
+    // بيانات الأمان العشوائية
+    if(document.getElementById("refId")) 
+        document.getElementById("refId").textContent = "SEC-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+    if(document.getElementById("timestampId")) 
+        document.getElementById("timestampId").textContent = new Date().toLocaleString();
+});
+</script>
+</body>
+</html>

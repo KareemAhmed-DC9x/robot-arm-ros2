@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARM CONTROL | Current Monitor</title>
+<!-- Google Fonts (already loaded by nav.js, but kept for fallback) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ===== Current Monitor specific styles ===== */
+  :root{
+    --bg:#080b10;
+    --bg-elev:#0c1018;
+    --panel:#10151e;
+    --panel-2:#131926;
+    --border:#1e2733;
+    --border-soft:#161d28;
+    --text:#eceff4;
+    --text-dim:#aab3c2;
+    --text-mute:#5d6878;
+    --accent:#2de8c0;
+    --accent-dim:rgba(45,232,192,.14);
+    --warn:#ffb23e;
+    --warn-dim:rgba(255,178,62,.14);
+    --danger:#ff3d63;
+    --danger-dim:rgba(255,61,99,.16);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1100px 600px at 12% -10%, rgba(45,232,192,.05), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(255,61,99,.04), transparent 55%),
+      var(--bg);
+    background-attachment:fixed;
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    padding:28px 22px 60px; /* body padding-left will be added by nav.js */
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+    background-size:42px 42px;
+    pointer-events:none;
+    z-index:0;
+  }
+  .wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto;}
+
+  /* Header */
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    flex-wrap:wrap; gap:16px;
+    padding-bottom:22px; margin-bottom:22px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 8px; display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+  h1{
+    font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:32px; letter-spacing:-.01em; margin:0 0 6px; color:var(--text);
+  }
+  .sub{color:var(--text-mute); font-size:14px; margin:0; max-width:48ch;}
+
+  .status-cluster{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .pill{
+    display:flex; align-items:center; gap:7px;
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.06em;
+    padding:7px 12px; border-radius:999px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text-dim); white-space:nowrap;
+  }
+  .pill .led{width:7px;height:7px;border-radius:50%;background:var(--text-mute);}
+  .pill.live .led{background:var(--accent); box-shadow:0 0 8px var(--accent); animation:blink 1.6s ease-in-out infinite;}
+  .pill.offline .led{background:var(--danger); box-shadow:0 0 8px var(--danger);}
+  .pill.alarm{border-color:rgba(255,61,99,.4); color:var(--danger); background:var(--danger-dim);}
+  .pill.alarm .led{background:var(--danger); box-shadow:0 0 8px var(--danger); animation:blink .7s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  button.demo-toggle{
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:.06em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text-dim); cursor:pointer;
+    transition:.15s ease;
+  }
+  button.demo-toggle:hover{border-color:var(--accent); color:var(--accent);}
+  button.demo-toggle:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  button.demo-toggle.on{border-color:var(--accent); color:var(--accent); background:var(--accent-dim);}
+
+  /* Summary strip */
+  .summary{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    margin-bottom:26px;
+  }
+  .sumcard{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .sumcard .label{font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-mute);}
+  .sumcard .value{font-family:'JetBrains Mono',monospace; font-size:26px; font-weight:700; margin-top:6px; color:var(--text);}
+  .sumcard .value.danger{color:var(--danger);}
+  .sumcard .value.warn{color:var(--warn);}
+  .sumcard .value.ok{color:var(--accent);}
+  .sumcard .note{font-size:11.5px; color:var(--text-mute); margin-top:4px;}
+
+  /* Motor grid */
+  .grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;
+  }
+  @media (max-width:920px){ .grid{grid-template-columns:repeat(2,1fr);} .summary{grid-template-columns:1fr;} }
+  @media (max-width:580px){ .grid{grid-template-columns:1fr;} header{align-items:flex-start;} }
+
+  .card{
+    position:relative;
+    background:var(--panel);
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    padding:18px 18px 16px;
+    overflow:hidden;
+    transition:background .25s ease, border-color .25s ease;
+  }
+  .card.alarm{
+    background:linear-gradient(180deg, rgba(255,61,99,.07), var(--panel) 55%);
+    border-color:rgba(255,61,99,.45);
+    animation:cardPulse 1.1s ease-in-out infinite;
+  }
+  @keyframes cardPulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(255,61,99,0);}
+    50%{box-shadow:0 0 26px 2px rgba(255,61,99,.28);}
+  }
+
+  /* animated circuit-trace border */
+  .trace{position:absolute; inset:0; pointer-events:none;}
+  .trace rect{
+    fill:none; stroke-width:1.5;
+    stroke:var(--border);
+    stroke-dasharray:6 9;
+  }
+  .trace rect.flow{
+    stroke:var(--accent);
+    stroke-dasharray:3 11;
+    opacity:.85;
+    animation:dashflow linear infinite;
+  }
+  .card.warn .trace rect.flow{stroke:var(--warn);}
+  .card.alarm .trace rect.flow{stroke:var(--danger); opacity:1;}
+  @keyframes dashflow{ to{ stroke-dashoffset:-140; } }
+
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+  .motor-id{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--text);
+    letter-spacing:.01em;
+  }
+  .motor-role{display:block; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-mute); letter-spacing:.08em; margin-top:2px;}
+  .badge{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.08em;
+    padding:4px 9px; border-radius:999px; border:1px solid var(--border);
+    color:var(--text-mute); white-space:nowrap; height:fit-content;
+  }
+  .badge.ok{color:var(--accent); border-color:rgba(45,232,192,.35); background:var(--accent-dim);}
+  .badge.warn{color:var(--warn); border-color:rgba(255,178,62,.35); background:var(--warn-dim);}
+  .badge.danger{color:var(--danger); border-color:rgba(255,61,99,.4); background:var(--danger-dim); animation:badgeBlink .8s ease-in-out infinite;}
+  @keyframes badgeBlink{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+  .gauge-row{display:flex; align-items:center; gap:14px; margin-top:10px; position:relative; z-index:1;}
+  svg.gauge{flex-shrink:0;}
+  .gauge-readout{flex:1; min-width:0;}
+  .reading{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:25px; color:var(--text);
+    line-height:1; transition:color .2s ease;
+  }
+  .reading.warn{color:var(--warn);}
+  .reading.danger{color:var(--danger);}
+  .reading .unit{font-size:13px; color:var(--text-mute); font-weight:500; margin-left:3px;}
+  .threshold-row{display:flex; align-items:center; gap:6px; margin-top:8px;}
+  .threshold-row label{font-size:10.5px; color:var(--text-mute); font-family:'JetBrains Mono',monospace;}
+  .threshold-row input{
+    width:58px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:11.5px;
+    padding:3px 6px;
+  }
+  .threshold-row input:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .spark{display:block; margin-top:12px; position:relative; z-index:1;}
+
+  footer{
+    margin-top:30px; padding-top:16px; border-top:1px solid var(--border-soft);
+    color:var(--text-mute); font-size:11.5px; font-family:'JetBrains Mono',monospace;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .pill.live .led, .pill.alarm .led, .card.alarm, .trace rect.flow, .badge.danger{
+      animation:none !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="eyebrow"><span class="dot"></span>ARM CONTROL &middot; LIVE TELEMETRY</p>
+      <h1>Current Monitor</h1>
+      <p class="sub">Real-time draw across all six axis drivers. Cards glow red the moment a motor crosses its threshold.</p>
+    </div>
+    <div class="status-cluster">
+      <span class="pill offline" id="connPill"><span class="led"></span><span id="connLabel">CONNECTING</span></span>
+      <span class="pill" id="alertPill"><span class="led"></span><span id="alertLabel">0 ALERTS</span></span>
+      <button class="demo-toggle" id="demoBtn" type="button" aria-pressed="false">DEMO MODE</button>
+    </div>
+  </header>
+
+  <section class="summary">
+    <div class="sumcard">
+      <div class="label">Total System Draw</div>
+      <div class="value ok" id="totalDraw">0.00 <span style="font-size:14px;">A</span></div>
+      <div class="note">Sum across M1&ndash;M6</div>
+    </div>
+    <div class="sumcard">
+      <div class="label">Peak Motor</div>
+      <div class="value" id="peakMotor">&mdash;</div>
+      <div class="note" id="peakNote">No data yet</div>
+    </div>
+    <div class="sumcard">
+      <div class="label">System Status</div>
+      <div class="value ok" id="sysStatus">NOMINAL</div>
+      <div class="note" id="sysNote">All channels within range</div>
+    </div>
+  </section>
+
+  <section class="grid" id="grid"></section>
+
+  <footer>
+    <span>arm_control &middot; current_sensor.html</span>
+    <span id="lastUpdate">last update: &mdash;</span>
+  </footer>
+</div>
+
+<!-- ===== INCLUDE SHARED NAVIGATION & AUTH ===== -->
+<script src="nav.js"></script>
+<!-- (optional) if you have auth_guard.js, include it before nav.js to enforce login -->
+<!-- <script src="auth_guard.js"></script> -->
+
+<!-- Socket.IO client -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<!-- Current Monitor logic -->
+<script>
+/* ============================================================
+   DATA CONTRACT – matches web_server_node.py
+
+   1) Live push via Socket.IO 'sensors_update' event (already
+      broadcast by the node on every sensor topic update):
+
+        sio.emit('sensors_update', {
+          encoders: [...],
+          limits:   [...],
+          gripper:  {...},
+          currents: {
+            values: [a1, a2, a3, a4, a5, a6],   // amps, float
+            names:  ["ENDEFFECTOR_1","LINK_3","LINK_2",
+                     "BASE","ENDEFFECTOR_2","LINK_1"]
+          }
+        })
+
+      We read payload.currents.values / payload.currents.names
+      and map them positionally to M1..M6 (index 0 -> M1, etc).
+
+   2) Initial snapshot via REST so the page isn't blank before
+      the first socket push:
+
+        GET /api/sensors/currents
+        -> { ok: true, values: [...], names: [...] }
+   ============================================================ */
+
+const MOTORS = [
+  { id:'M1', role:'JOINT 1 · NEMA23', threshold:3.0, range:4.5 },
+  { id:'M2', role:'JOINT 2 · NEMA23', threshold:3.0, range:4.5 },
+  { id:'M3', role:'JOINT 3 · NEMA17', threshold:1.8, range:3.0 },
+  { id:'M4', role:'JOINT 4 · NEMA17', threshold:1.8, range:3.0 },
+  { id:'M5', role:'JOINT 5 · NEMA17', threshold:1.8, range:3.0 },
+  { id:'M6', role:'JOINT 6 · NEMA17', threshold:1.8, range:3.0 },
+];
+// Thresholds are placeholders; edit the number fields live or change defaults here.
+// NOTE: card order (M1..M6) maps positionally to the backend's CURRENT_NAMES
+// array order. If your physical channel order differs, reorder MOTORS to match.
+
+const HISTORY_LEN = 36;
+const state = {}; // id -> { value, history[], threshold, range }
+let demoMode = false;
+let demoTimer = null;
+
+const grid = document.getElementById('grid');
+
+function gaugeSVG(id){
+  const r = 38, cx = 46, cy = 46, sw = 7;
+  const circ = 2*Math.PI*r;
+  return `
+  <svg class="gauge" width="92" height="92" viewBox="0 0 92 92">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${sw}"/>
+    <circle id="arc-${id}" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--accent)"
+      stroke-width="${sw}" stroke-linecap="round"
+      stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
+      transform="rotate(-90 ${cx} ${cy})" style="transition:stroke-dashoffset .35s ease, stroke .25s ease"/>
+  </svg>`;
+}
+
+function traceSVG(){
+  return `
+  <svg class="trace" width="100%" height="100%" preserveAspectRatio="none">
+    <rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="14"/>
+    <rect class="flow" x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" rx="14"/>
+  </svg>`;
+}
+
+MOTORS.forEach(m=>{
+  state[m.id] = { value:0, history:Array(HISTORY_LEN).fill(0), threshold:m.threshold, range:m.range };
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = `card-${m.id}`;
+  card.innerHTML = `
+    ${traceSVG()}
+    <div class="card-top">
+      <div>
+        <span class="motor-id">${m.id}</span>
+        <span class="motor-role" id="role-${m.id}">${m.role}</span>
+      </div>
+      <span class="badge ok" id="badge-${m.id}">NOMINAL</span>
+    </div>
+    <div class="gauge-row">
+      ${gaugeSVG(m.id)}
+      <div class="gauge-readout">
+        <div class="reading" id="reading-${m.id}">0.00<span class="unit">A</span></div>
+        <div class="threshold-row">
+          <label for="th-${m.id}">ALERT &gt;</label>
+          <input id="th-${m.id}" type="number" step="0.1" min="0" value="${m.threshold}">
+          <span style="font-size:10.5px;color:var(--text-mute);font-family:'JetBrains Mono',monospace;">A</span>
+        </div>
+      </div>
+    </div>
+    <canvas class="spark" id="spark-${m.id}" width="280" height="46"></canvas>
+  `;
+  grid.appendChild(card);
+
+  document.getElementById(`th-${m.id}`).addEventListener('change', e=>{
+    const v = parseFloat(e.target.value);
+    if(!isNaN(v) && v > 0){ state[m.id].threshold = v; renderMotor(m.id); }
+  });
+});
+
+function colorFor(ratio){
+  if(ratio >= 1) return getCSS('--danger');
+  if(ratio >= 0.78) return getCSS('--warn');
+  return getCSS('--accent');
+}
+function getCSS(varName){
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+function renderMotor(id){
+  const s = state[id];
+  const ratio = Math.min(s.value / s.threshold, 1.35);
+  const fillRatio = Math.min(s.value / s.range, 1);
+  const color = colorFor(ratio);
+  const level = ratio >= 1 ? 'danger' : (ratio >= 0.78 ? 'warn' : 'ok');
+
+  // gauge arc
+  const r = 38, circ = 2*Math.PI*r;
+  const arc = document.getElementById(`arc-${id}`);
+  arc.style.strokeDashoffset = circ - (fillRatio * circ);
+  arc.style.stroke = color;
+
+  // reading
+  const reading = document.getElementById(`reading-${id}`);
+  reading.innerHTML = `${s.value.toFixed(2)}<span class="unit">A</span>`;
+  reading.className = 'reading' + (level==='danger' ? ' danger' : level==='warn' ? ' warn' : '');
+
+  // badge
+  const badge = document.getElementById(`badge-${id}`);
+  badge.textContent = level==='danger' ? 'OVERCURRENT' : level==='warn' ? 'APPROACHING' : 'NOMINAL';
+  badge.className = 'badge ' + level;
+
+  // card state
+  const card = document.getElementById(`card-${id}`);
+  card.className = 'card' + (level==='danger' ? ' alarm' : level==='warn' ? ' warn' : '');
+  const flowRect = card.querySelector('.trace rect.flow');
+  const speed = level==='danger' ? 0.55 : level==='warn' ? 1.1 : Math.max(1.8, 4.2 - fillRatio*2.4);
+  flowRect.style.animationDuration = `${speed}s`;
+
+  drawSpark(id, color);
+  updateSummary();
+}
+
+function drawSpark(id, color){
+  const c = document.getElementById(`spark-${id}`);
+  const ctx = c.getContext('2d');
+  const w = c.width, h = c.height;
+  ctx.clearRect(0,0,w,h);
+  const hist = state[id].history;
+  const max = Math.max(state[id].range, ...hist, 0.1);
+  ctx.beginPath();
+  hist.forEach((v,i)=>{
+    const x = (i/(HISTORY_LEN-1)) * w;
+    const y = h - (v/max)*h*0.92 - 2;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  // threshold line
+  const thY = h - (state[id].threshold/max)*h*0.92 - 2;
+  ctx.beginPath();
+  ctx.setLineDash([3,3]);
+  ctx.moveTo(0, thY); ctx.lineTo(w, thY);
+  ctx.strokeStyle = 'rgba(255,178,62,.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function updateMotor(id, value){
+  if(!state[id]) return;
+  state[id].value = value;
+  state[id].history.push(value);
+  state[id].history.shift();
+  renderMotor(id);
+  document.getElementById('lastUpdate').textContent = `last update: ${new Date().toLocaleTimeString()}`;
+}
+
+function updateSummary(){
+  const ids = Object.keys(state);
+  const total = ids.reduce((sum,id)=>sum+state[id].value,0);
+  const peakId = ids.reduce((a,b)=> state[a].value > state[b].value ? a : b);
+  const alerts = ids.filter(id => state[id].value >= state[id].threshold);
+  const warns = ids.filter(id => state[id].value >= state[id].threshold*0.78 && state[id].value < state[id].threshold);
+
+  const totalEl = document.getElementById('totalDraw');
+  totalEl.innerHTML = `${total.toFixed(2)} <span style="font-size:14px;">A</span>`;
+  totalEl.className = 'value ' + (alerts.length ? 'danger' : warns.length ? 'warn' : 'ok');
+
+  document.getElementById('peakMotor').textContent = `${peakId} · ${state[peakId].value.toFixed(2)} A`;
+  document.getElementById('peakNote').textContent = state[peakId].value >= state[peakId].threshold
+    ? 'Over its alert threshold' : 'Highest current draw';
+
+  const sysStatus = document.getElementById('sysStatus');
+  const sysNote = document.getElementById('sysNote');
+  if(alerts.length){
+    sysStatus.textContent = 'ALARM';
+    sysStatus.className = 'value danger';
+    sysNote.textContent = `${alerts.join(', ')} over threshold`;
+  } else if(warns.length){
+    sysStatus.textContent = 'WARNING';
+    sysStatus.className = 'value warn';
+    sysNote.textContent = `${warns.join(', ')} approaching threshold`;
+  } else {
+    sysStatus.textContent = 'NOMINAL';
+    sysStatus.className = 'value ok';
+    sysNote.textContent = 'All channels within range';
+  }
+
+  const alertPill = document.getElementById('alertPill');
+  document.getElementById('alertLabel').textContent = `${alerts.length} ALERT${alerts.length===1?'':'S'}`;
+  alertPill.className = 'pill' + (alerts.length ? ' alarm' : '');
+}
+
+/* ---------- Apply a currents payload (values[], optional names[]) ---------- */
+function applyCurrentPayload(values, names){
+  if(!Array.isArray(values)) return;
+  values.forEach((v, i)=>{
+    const id = `M${i+1}`;
+    if(!state[id]) return; // ignore extra channels beyond M6
+    if(names && names[i]){
+      const roleEl = document.getElementById(`role-${id}`);
+      if(roleEl) roleEl.textContent = names[i];
+    }
+    updateMotor(id, Number(v) || 0);
+  });
+}
+
+/* ---------- Initial snapshot over REST (so the page isn't blank pre-socket) ---------- */
+async function fetchInitialCurrents(){
+  try{
+    const res = await fetch('/api/sensors/currents');
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data && data.ok && Array.isArray(data.values)){
+      applyCurrentPayload(data.values, data.names);
+    }
+  }catch(e){
+    console.warn('Initial currents fetch failed', e);
+  }
+}
+
+/* ---------- Socket.IO (polling transport – matches the rest of the dashboard) ---------- */
+const connPill = document.getElementById('connPill');
+const connLabel = document.getElementById('connLabel');
+
+function setConn(live){
+  connPill.className = 'pill ' + (live ? 'live' : 'offline');
+  connLabel.textContent = live ? 'LIVE' : 'OFFLINE';
+}
+
+let socket;
+try{
+  socket = io({ transports:['polling'], upgrade:false });
+  socket.on('connect', ()=>{ if(!demoMode) setConn(true); });
+  socket.on('disconnect', ()=>{ if(!demoMode) setConn(false); });
+  socket.on('sensors_update', payload=>{
+    if(demoMode) return;
+    if(payload && payload.currents){
+      applyCurrentPayload(payload.currents.values, payload.currents.names);
+    }
+  });
+}catch(e){
+  console.warn('Socket.IO not available, demo mode only.', e);
+}
+
+// Pull an initial snapshot immediately on load (don't wait for first push)
+fetchInitialCurrents();
+
+/* ---------- Demo mode (preview UI without backend) ---------- */
+const demoBtn = document.getElementById('demoBtn');
+demoBtn.addEventListener('click', ()=>{
+  demoMode = !demoMode;
+  demoBtn.classList.toggle('on', demoMode);
+  demoBtn.setAttribute('aria-pressed', demoMode);
+  demoBtn.textContent = demoMode ? 'MODE: ON' : 'MODE:OFF';
+  if(demoMode){
+    setConn(true);
+    connLabel.textContent = 'DEMO';
+    demoTimer = setInterval(runDemoTick, 450);
+  } else {
+    clearInterval(demoTimer);
+    setConn(socket && socket.connected);
+  }
+});
+
+let demoT = 0;
+function runDemoTick(){
+  demoT += 1;
+  MOTORS.forEach((m,i)=>{
+    const base = m.threshold * (0.35 + 0.18*Math.sin(demoT/14 + i));
+    const noise = (Math.random()-0.5) * m.threshold * 0.08;
+    let spike = 0;
+    // Occasionally drive M3 into overcurrent to show off the alert
+    if(m.id === 'M3' && Math.sin(demoT/40) > 0.7) spike = m.threshold * 0.55;
+    const value = Math.max(0, base + noise + spike);
+    updateMotor(m.id, value);
+  });
+}
+
+// Initial paint
+MOTORS.forEach(m=> renderMotor(m.id));
+</script>
+</body>
+</html>

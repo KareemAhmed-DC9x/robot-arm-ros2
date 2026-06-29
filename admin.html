@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ARM | Admin Panel</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0e0f13;color:#c8d6e5;font-family:'Inter',sans-serif;min-height:100vh}
+.msym{font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 24;font-style:normal;line-height:1;vertical-align:middle}
+.gh{font-family:'Space Grotesk',sans-serif}
+
+/* Header */
+header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid rgba(59,73,76,.25);background:rgba(14,15,19,.95);backdrop-filter:blur(8px)}
+.hdr-title{font-family:'Space Grotesk',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#c3f5ff}
+.hdr-sub{font-size:.58rem;color:rgba(186,201,204,.35);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+
+/* Search + filter bar */
+.toolbar{display:flex;align-items:center;gap:10px;padding:16px 28px;border-bottom:1px solid rgba(59,73,76,.15);flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap .msym{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:16px;color:rgba(186,201,204,.3)}
+.search-inp{width:100%;background:#0b0c10;border:1px solid rgba(59,73,76,.3);color:#c8d6e5;font-family:'Inter',monospace;font-size:.8rem;padding:8px 10px 8px 36px;outline:none;transition:border-color .15s}
+.search-inp:focus{border-color:rgba(0,229,255,.4)}
+.filter-sel{background:#0b0c10;border:1px solid rgba(59,73,76,.3);color:#849396;font-size:.72rem;padding:8px 12px;outline:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;letter-spacing:.06em}
+.filter-sel:focus{border-color:rgba(0,229,255,.4)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-family:'Space Grotesk',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#00e5ff;color:#003d45}
+.btn-primary:hover{background:#00daf3;transform:translateY(-1px)}
+.btn-ghost{background:transparent;border:1px solid rgba(59,73,76,.4);color:rgba(186,201,204,.5)}
+.btn-ghost:hover{border-color:rgba(0,229,255,.4);color:#c3f5ff}
+.btn-danger{background:transparent;border:1px solid rgba(255,51,102,.2);color:rgba(255,51,102,.5)}
+.btn-danger:hover{border-color:#ff3366;color:#ff3366;background:rgba(255,51,102,.05)}
+.btn-sm{padding:5px 10px;font-size:.58rem}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(59,73,76,.15);border-bottom:1px solid rgba(59,73,76,.15)}
+.stat-card{background:#0e0f13;padding:16px 24px}
+.stat-val{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;color:#c3f5ff}
+.stat-lbl{font-size:.58rem;color:rgba(186,201,204,.35);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.stat-card.admin .stat-val{color:#b9f61d}
+.stat-card.operator .stat-val{color:#00e5ff}
+.stat-card.inactive .stat-val{color:#ff9500}
+
+/* Table */
+.table-wrap{overflow-x:auto;padding:20px 28px}
+table{width:100%;border-collapse:collapse}
+th{font-family:'Space Grotesk',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(186,201,204,.35);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(59,73,76,.25);white-space:nowrap}
+td{padding:12px 12px;border-bottom:1px solid rgba(59,73,76,.1);font-size:.78rem;vertical-align:middle}
+tr:hover td{background:rgba(0,229,255,.02)}
+.td-name{display:flex;align-items:center;gap:10px}
+.av-sm{width:30px;height:30px;border-radius:50%;border:1px solid rgba(59,73,76,.4);background:#0d1420;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.av-sm img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.av-sm .msym{font-size:15px;color:#3d4f55}
+.u-name{font-family:'Space Grotesk',sans-serif;font-size:.72rem;font-weight:600;color:#c3f5ff;letter-spacing:.04em}
+.u-dn{font-size:.6rem;color:rgba(186,201,204,.35);margin-top:1px}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-family:'Space Grotesk',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.badge-admin{background:rgba(185,246,29,.08);color:#b9f61d;border:1px solid rgba(185,246,29,.2)}
+.badge-operator{background:rgba(0,229,255,.06);color:#00daf3;border:1px solid rgba(0,229,255,.2)}
+.badge-viewer{background:rgba(132,147,150,.06);color:#849396;border:1px solid rgba(132,147,150,.2)}
+.badge-active{background:rgba(185,246,29,.06);color:#b9f61d}
+.badge-inactive{background:rgba(255,149,0,.06);color:#ff9500}
+.badge-suspended{background:rgba(255,51,102,.06);color:#ff3366}
+
+/* Permission pills */
+.perms{display:flex;flex-wrap:wrap;gap:3px}
+.perm-pill{padding:2px 6px;font-size:.55rem;font-family:'Space Grotesk',sans-serif;letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(0,229,255,.15);color:rgba(0,229,255,.5)}
+.perm-pill.off{border-color:rgba(59,73,76,.2);color:rgba(59,73,76,.6)}
+
+/* Action buttons */
+.act-btns{display:flex;gap:4px}
+.act-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(59,73,76,.3);background:transparent;cursor:pointer;transition:all .15s;flex-shrink:0}
+.act-btn .msym{font-size:15px;color:#3d4f55}
+.act-btn:hover{border-color:rgba(0,229,255,.4)} .act-btn:hover .msym{color:#00e5ff}
+.act-btn.del:hover{border-color:rgba(255,51,102,.4)} .act-btn.del:hover .msym{color:#ff3366}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:#0e0f13;border:1px solid rgba(59,73,76,.4);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;position:relative}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid rgba(59,73,76,.2)}
+.modal-title{font-family:'Space Grotesk',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#c3f5ff}
+.modal-close{width:26px;height:26px;border:1px solid rgba(59,73,76,.4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.modal-close:hover{border-color:rgba(255,51,102,.5)}
+.modal-close .msym{font-size:14px;color:#849396}
+.modal-body{padding:22px}
+.modal-footer{padding:14px 22px;border-top:1px solid rgba(59,73,76,.15);display:flex;justify-content:flex-end;gap:8px}
+.form-group{margin-bottom:16px}
+.form-lbl{font-family:'Space Grotesk',sans-serif;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(186,201,204,.45);margin-bottom:5px;display:flex;justify-content:space-between}
+.form-inp{width:100%;background:#0b0c10;border:1px solid rgba(59,73,76,.3);color:#c8d6e5;font-family:'Inter',monospace;font-size:.8rem;padding:9px 12px;outline:none;transition:border-color .15s}
+.form-inp:focus{border-color:rgba(0,229,255,.4)}
+.form-sel{width:100%;background:#0b0c10;border:1px solid rgba(59,73,76,.3);color:#c8d6e5;font-family:'Space Grotesk',sans-serif;font-size:.75rem;padding:9px 12px;outline:none;cursor:pointer}
+.form-sel:focus{border-color:rgba(0,229,255,.4)}
+.perms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.perm-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid rgba(59,73,76,.25);cursor:pointer;transition:border-color .15s;user-select:none}
+.perm-toggle.on{border-color:rgba(0,229,255,.3);background:rgba(0,229,255,.04)}
+.perm-toggle.on .pt-lbl{color:#00e5ff}
+.perm-toggle.locked{opacity:.35;cursor:not-allowed}
+.pt-lbl{font-family:'Space Grotesk',sans-serif;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#3d4f55;transition:color .15s}
+.pt-chk{width:12px;height:12px;border:1px solid rgba(59,73,76,.4);background:transparent;transition:all .15s}
+.perm-toggle.on .pt-chk{background:#00e5ff;border-color:#00e5ff}
+
+/* Toast */
+#toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;background:#0d1015;border-left:2px solid #00e5ff;font-family:'Space Grotesk',sans-serif;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:#c3f5ff;z-index:9999;transform:translateY(60px);opacity:0;transition:all .3s;display:flex;align-items:center;gap:8px;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.err{border-color:#ff3366;color:#ff3366}
+
+/* Empty state */
+.empty{padding:48px;text-align:center;color:rgba(186,201,204,.2)}
+.empty .msym{font-size:40px;margin-bottom:12px;display:block}
+.empty p{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-family:'Space Grotesk',sans-serif}
+</style>
+</head>
+<body>
+<script src="/nav.js"></script>
+
+<header>
+  <div>
+    <div class="hdr-title">Admin Panel</div>
+    <div class="hdr-sub">User Management &amp; Permissions</div>
+  </div>
+  <button class="btn btn-primary" onclick="openCreate()">
+    <span class="msym">person_add</span> New User
+  </button>
+</header>
+
+<!-- Stats -->
+<div class="stats-row" id="stats-row">
+  <div class="stat-card"><div class="stat-val" id="stat-total">—</div><div class="stat-lbl">Total Users</div></div>
+  <div class="stat-card admin"><div class="stat-val" id="stat-admin">—</div><div class="stat-lbl">Admins</div></div>
+  <div class="stat-card operator"><div class="stat-val" id="stat-op">—</div><div class="stat-lbl">Operators</div></div>
+  <div class="stat-card inactive"><div class="stat-val" id="stat-in">—</div><div class="stat-lbl">Inactive</div></div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="msym">search</span>
+    <input class="search-inp" id="search-inp" placeholder="Search users…" oninput="filterTable()"/>
+  </div>
+  <select class="filter-sel" id="role-filter" onchange="filterTable()">
+    <option value="">All Roles</option>
+    <option value="admin">Admin</option>
+    <option value="operator">Operator</option>
+    <option value="viewer">Viewer</option>
+  </select>
+  <select class="filter-sel" id="status-filter" onchange="filterTable()">
+    <option value="">All Status</option>
+    <option value="active">Active</option>
+    <option value="inactive">Inactive</option>
+    <option value="suspended">Suspended</option>
+  </select>
+  <button class="btn btn-ghost btn-sm" onclick="loadUsers()">
+    <span class="msym">refresh</span> Refresh
+  </button>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>ID</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Permissions</th>
+        <th>Last Login</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="users-tbody"></tbody>
+  </table>
+  <div class="empty" id="empty-state" style="display:none">
+    <span class="msym">group_off</span>
+    <p>No users found</p>
+  </div>
+</div>
+
+<!-- ── CREATE/EDIT MODAL ── -->
+<div class="modal-bg" id="modal-user">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-title">New User</div>
+      <button class="modal-close" onclick="closeModal('modal-user')"><span class="msym">close</span></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-uid" value=""/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <div class="form-lbl"><span>Username</span><span style="color:rgba(0,229,255,.3)">UID</span></div>
+          <input class="form-inp" id="f-username" placeholder="username" autocomplete="off"/>
+        </div>
+        <div class="form-group">
+          <div class="form-lbl"><span>Display Name</span></div>
+          <input class="form-inp" id="f-display" placeholder="Full name"/>
+        </div>
+        <div class="form-group">
+          <div class="form-lbl"><span>Password</span><span style="color:rgba(0,229,255,.3)">HASH</span></div>
+          <input class="form-inp" id="f-password" type="password" placeholder="Min 8 chars"/>
+        </div>
+        <div class="form-group">
+          <div class="form-lbl"><span>Email</span></div>
+          <input class="form-inp" id="f-email" type="email" placeholder="email@domain"/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <div class="form-lbl">Role</div>
+          <select class="form-sel" id="f-role" onchange="onRoleChange()">
+            <option value="viewer">Viewer</option>
+            <option value="operator">Operator</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-lbl">Status</div>
+          <select class="form-sel" id="f-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-lbl" style="margin-bottom:8px">Page Permissions</div>
+        <div class="perms-grid" id="perms-grid"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-user')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveUser()">
+        <span class="msym">save</span> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DELETE CONFIRM ── -->
+<div class="modal-bg" id="modal-del">
+  <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <div class="modal-title" style="color:#ff3366">Delete User</div>
+      <button class="modal-close" onclick="closeModal('modal-del')"><span class="msym">close</span></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:rgba(186,201,204,.6);line-height:1.6">Are you sure you want to permanently delete <strong id="del-name" style="color:#c3f5ff"></strong>? This action cannot be undone and will end all active sessions.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-del')">Cancel</button>
+      <button class="btn btn-danger" id="del-confirm-btn">
+        <span class="msym">delete</span> Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const PAGES = ['control','monitor','account','logs','admin','sensor','robot_programmer'];
+let allUsers = [];
+
+// ── Load users ──────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const d = await fetch('/api/admin/users').then(r=>r.json());
+    if (!d.ok) return;
+    allUsers = d.users;
+    renderStats(allUsers);
+    renderTable(allUsers);
+  } catch(e) { toast('Load error','err'); }
+}
+
+function renderStats(users) {
+  document.getElementById('stat-total').textContent = users.length;
+  document.getElementById('stat-admin').textContent = users.filter(u=>u.role==='admin').length;
+  document.getElementById('stat-op').textContent    = users.filter(u=>u.role==='operator').length;
+  document.getElementById('stat-in').textContent    = users.filter(u=>u.status!=='active').length;
+}
+
+function filterTable() {
+  const q  = document.getElementById('search-inp').value.toLowerCase();
+  const rf = document.getElementById('role-filter').value;
+  const sf = document.getElementById('status-filter').value;
+  const filtered = allUsers.filter(u =>
+    (!q  || u.username.toLowerCase().includes(q) || (u.display_name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q)) &&
+    (!rf || u.role===rf) &&
+    (!sf || u.status===sf)
+  );
+  renderTable(filtered);
+}
+
+function renderTable(users) {
+  const tb  = document.getElementById('users-tbody');
+  const emp = document.getElementById('empty-state');
+  if (!users.length) { tb.innerHTML=''; emp.style.display=''; return; }
+  emp.style.display='none';
+  tb.innerHTML = users.map(u => {
+    const perms = u.permissions || {};
+    const avEl = u.avatar_url
+      ? `<img src="${u.avatar_url}" alt="av"/>`
+      : `<span class="msym">person</span>`;
+    const pills = PAGES.map(p =>
+      `<span class="perm-pill${perms[p]?'':' off'}">${p.slice(0,3)}</span>`
+    ).join('');
+    const ll = u.last_login
+      ? new Date(u.last_login*1000).toLocaleString()
+      : '—';
+    return `<tr data-role="${u.role}" data-status="${u.status}">
+      <td><div class="td-name">
+        <div class="av-sm">${avEl}</div>
+        <div><div class="u-name">${esc(u.username)}</div><div class="u-dn">${esc(u.display_name||'—')}</div></div>
+      </div></td>
+      <td style="font-family:monospace;font-size:.7rem;color:rgba(186,201,204,.35)">#${u.id}</td>
+      <td><span class="badge badge-${u.role}">${u.role}</span></td>
+      <td><span class="badge badge-${u.status}">${u.status}</span></td>
+      <td><div class="perms">${pills}</div></td>
+      <td style="font-size:.68rem;color:rgba(186,201,204,.4);white-space:nowrap">${ll}</td>
+      <td><div class="act-btns">
+        <button class="act-btn" title="Edit" onclick='openEdit(${JSON.stringify(u)})'><span class="msym">edit</span></button>
+        <button class="act-btn del" title="Delete" onclick="openDelete(${u.id},'${esc(u.username)}')"><span class="msym">delete</span></button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Modals ──────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+
+function buildPermsGrid(perms={}, role='viewer') {
+  const el = document.getElementById('perms-grid');
+  el.innerHTML = PAGES.map(p => {
+    const on     = !!perms[p];
+    const locked = role==='admin' || p==='account' || (p==='logs' && role!=='admin');
+    return `<div class="perm-toggle${on?' on':''}${locked?' locked':''}" id="pt-${p}"
+                 onclick="togglePerm('${p}',${locked})">
+      <span class="pt-lbl">${p}</span>
+      <div class="pt-chk"></div>
+    </div>`;
+  }).join('');
+}
+
+function togglePerm(page, locked) {
+  if (locked) return;
+  const el = document.getElementById('pt-'+page);
+  el.classList.toggle('on');
+}
+
+function onRoleChange() {
+  const role = document.getElementById('f-role').value;
+  // Re-render perms for new role defaults
+  const defaults = {
+  admin:    ['control','monitor','admin','account','logs','newpage'],
+  operator: ['control','monitor','account','sensor'],  
+  viewer:   ['monitor','account']                       
+  };
+  const p = {};
+  (defaults[role]||[]).forEach(pg => p[pg]=true);
+  buildPermsGrid(p, role);
+}
+
+function openCreate() {
+  document.getElementById('modal-title').textContent = 'New User';
+  document.getElementById('edit-uid').value = '';
+  document.getElementById('f-username').disabled = false;
+  ['f-username','f-display','f-password','f-email'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-role').value   = 'viewer';
+  document.getElementById('f-status').value = 'active';
+  buildPermsGrid({monitor:true,account:true}, 'viewer');
+  openModal('modal-user');
+}
+
+function openEdit(u) {
+  document.getElementById('modal-title').textContent = 'Edit User';
+  document.getElementById('edit-uid').value           = u.id;
+  document.getElementById('f-username').value         = u.username;
+  document.getElementById('f-username').disabled      = true;
+  document.getElementById('f-display').value          = u.display_name || '';
+  document.getElementById('f-email').value            = u.email || '';
+  document.getElementById('f-password').value         = '';
+  document.getElementById('f-role').value             = u.role;
+  document.getElementById('f-status').value           = u.status;
+  buildPermsGrid(u.permissions || {}, u.role);
+  openModal('modal-user');
+}
+
+async function saveUser() {
+  const uid = document.getElementById('edit-uid').value;
+  const role = document.getElementById('f-role').value;
+
+  // جمع الصلاحيات من واجهة المستخدم
+  const pages = [];
+  for (let p of PAGES) {
+    const el = document.getElementById('pt-'+p);
+    if (el && el.classList.contains('on')) pages.push(p);
+  }
+  console.log('Saving pages:', pages); // للتأكد في الـ Console
+
+  if (uid) {
+    // تحديث بيانات المستخدم
+    const body = {
+      display_name: document.getElementById('f-display').value,
+      email:        document.getElementById('f-email').value,
+      role: role,
+      status: document.getElementById('f-status').value,
+    };
+    const pw = document.getElementById('f-password').value;
+    if (pw) body.new_password = pw;
+
+    const userResp = await fetch(`/api/admin/users/${uid}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const userData = await userResp.json();
+    if (!userData.ok) {
+      toast(userData.message || 'User update failed', 'err');
+      return;
+    }
+
+    // تحديث الصلاحيات
+    const permResp = await fetch(`/api/admin/users/${uid}/permissions`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pages })
+    });
+    const permData = await permResp.json();
+    if (permData.ok) {
+      toast('User and permissions updated ✓');
+      closeModal('modal-user');
+      loadUsers();
+    } else {
+      toast('Permissions update failed: ' + (permData.message || 'Unknown error'), 'err');
+    }
+  } else {
+    // إنشاء مستخدم جديد (كما هو مع التحقق من الصلاحيات)
+    const un = document.getElementById('f-username').value.trim();
+    const pw = document.getElementById('f-password').value;
+    if (!un||!pw) { toast('Username and password required','err'); return; }
+    const body = {
+      username: un, password: pw, role: role,
+      status: document.getElementById('f-status').value,
+      display_name: document.getElementById('f-display').value,
+      email: document.getElementById('f-email').value
+    };
+    const r = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      // تعيين الصلاحيات بعد الإنشاء
+      const permResp = await fetch(`/api/admin/users/${d.id}/permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pages })
+      });
+      const permData = await permResp.json();
+      if (permData.ok) {
+        toast('User created with permissions ✓');
+        closeModal('modal-user');
+        loadUsers();
+      } else {
+        toast('User created but permissions failed: ' + (permData.message||''), 'err');
+      }
+    } else {
+      toast(d.message||'Create failed','err');
+    }
+  }
+}
+
+let _delUid=null;
+function openDelete(uid,name) {
+  _delUid=uid; document.getElementById('del-name').textContent=name; openModal('modal-del');
+}
+document.getElementById('del-confirm-btn').addEventListener('click',async()=>{
+  if(!_delUid)return;
+  const r=await fetch(`/api/admin/users/${_delUid}`,{method:'DELETE'});
+  const d=await r.json();
+  if(d.ok){toast('User deleted');closeModal('modal-del');loadUsers();}
+  else toast(d.message||'Delete failed','err');
+});
+
+// Close modal on backdrop
+['modal-user','modal-del'].forEach(id=>document.getElementById(id).addEventListener('click',()=>closeModal(id)));
+
+// ── Toast ───────────────────────────────────────────────────────
+function toast(msg,type='ok') {
+  const el=document.getElementById('toast'); el.textContent=msg;
+  el.className='show'+(type==='err'?' err':'');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.className='',3000);
+}
+
+loadUsers();
+</script>
+</body>
+</html> 

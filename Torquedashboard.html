@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TORQUE &amp; LOAD ANALYSIS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg:      #0a0b0e;
+    --panel:   #0e0f13;
+    --panel2:  #0c0d11;
+    --border:  #1a2028;
+    --accent:  #00e5ff;
+    --accent2: #ff6b35;
+    --green:   #b9f61d;
+    --red:     #ff3366;
+    --yellow:  #ffd700;
+    --text:    #c8d6e5;
+    --dim:     #3d4f55;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+  }
+
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 22px 24px 40px; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .title-block h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: .14em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .title-block .eq {
+    margin-top: 6px;
+    font-size: .72rem;
+    color: var(--dim);
+    letter-spacing: .04em;
+  }
+  .title-block .eq b { color: var(--text); font-weight: 400; }
+
+  .conn-row { display: flex; align-items: center; gap: 8px; }
+  #conn-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim);
+    transition: background .3s, box-shadow .3s;
+  }
+  #conn-dot.ok  { background: var(--green); box-shadow: 0 0 7px var(--green); }
+  #conn-dot.err { background: var(--red);   box-shadow: 0 0 7px var(--red); }
+  #conn-label { font-size: .62rem; letter-spacing: .1em; color: var(--dim); }
+
+  /* ── MAPPING LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+    font-size: .62rem;
+    letter-spacing: .03em;
+    color: var(--dim);
+  }
+  .legend .chip {
+    border: 1px solid var(--border);
+    background: var(--panel2);
+    padding: 5px 10px;
+    border-radius: 3px;
+  }
+  .legend .chip b { color: var(--accent); }
+  .legend .chip span.r { color: var(--accent2); }
+
+  /* ── SECTION TITLES ── */
+  .sec-title {
+    font-family: 'Orbitron', monospace;
+    font-size: .62rem;
+    letter-spacing: .14em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* ── LOAD + CONFIG PANEL ── */
+  .load-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .load-field label {
+    display: block;
+    font-size: .62rem;
+    letter-spacing: .12em;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .load-input-row { display: flex; align-items: baseline; gap: 8px; }
+  #load-kg {
+    width: 130px;
+    background: #070a0e;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    padding: 8px 12px;
+    outline: none;
+  }
+  #load-kg:focus { border-color: var(--accent); }
+  .load-input-row .unit { font-size: .8rem; color: var(--dim); }
+  .load-sub { margin-top: 6px; font-size: .68rem; color: var(--dim); }
+  .load-sub b { color: var(--text); }
+
+  .load-note {
+    flex: 1;
+    min-width: 220px;
+    font-size: .64rem;
+    color: var(--dim);
+    line-height: 1.6;
+    border-left: 1px solid var(--border);
+    padding-left: 18px;
+  }
+  .load-note .src { color: var(--accent2); }
+
+  .cfg-toggle {
+    margin-left: auto;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .68rem;
+    letter-spacing: .06em;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .cfg-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── WARNING BANNER ── */
+  .warn-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,215,0,0.06);
+    border: 1px solid rgba(255,215,0,0.35);
+    color: var(--yellow);
+    font-size: .68rem;
+    line-height: 1.6;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .warn-banner button {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(255,215,0,0.35);
+    color: var(--yellow);
+    font-family: 'Space Mono', monospace;
+    font-size: .8rem;
+    width: 24px; height: 24px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .warn-banner button:hover { background: rgba(255,215,0,0.12); }
+  .warn-banner.hidden { display: none; }
+
+  /* ── CONFIG PANEL ── */
+  .config-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    display: none;
+  }
+  .config-panel.open { display: block; }
+
+  .cfg-group { margin-bottom: 18px; }
+  .cfg-group:last-child { margin-bottom: 0; }
+  .cfg-group-title {
+    font-size: .6rem;
+    letter-spacing: .1em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .cfg-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+  }
+  .cfg-field label {
+    display: block;
+    font-size: .58rem;
+    color: var(--dim);
+    margin-bottom: 4px;
+    letter-spacing: .02em;
+    line-height: 1.3;
+    min-height: 28px;
+  }
+  .cfg-field input[type=number] {
+    width: 100%;
+    background: #070a0e;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: .72rem;
+    padding: 7px 8px;
+    outline: none;
+  }
+  .cfg-field input[type=number]:focus { border-color: var(--accent); }
+
+  .cfg-flags { display: flex; gap: 22px; margin-top: 4px; }
+  .cfg-flags label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: .64rem; color: var(--dim); cursor: pointer;
+  }
+  .cfg-flags input { accent-color: var(--accent); cursor: pointer; }
+
+  .cfg-actions { margin-top: 16px; }
+  .btn-reset {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    font-family: 'Space Mono', monospace;
+    font-size: .64rem;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-reset:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── MOTOR TORQUE GRID ── */
+  .motor-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .motor-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px;
+    text-align: center;
+    transition: border-color .2s;
+  }
+  .motor-card.overload { border-color: rgba(255,51,102,.5); }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    margin-bottom: 10px;
+  }
+  .motor-tag {
+    font-family: 'Orbitron', monospace;
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ls-chip {
+    font-size: .48rem;
+    padding: 2px 5px;
+    border: 1px solid rgba(255,215,0,0.4);
+    color: var(--yellow);
+    letter-spacing: .06em;
+    border-radius: 2px;
+  }
+  .joint-tag { font-size: .58rem; color: var(--dim); letter-spacing: .03em; }
+
+  .gauge-wrap {
+    position: relative;
+    width: 132px; height: 132px;
+    margin: 6px auto 10px;
+  }
+  .gauge-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge-track { fill: none; stroke: #151c24; stroke-width: 8; }
+  .gauge-fill  { fill: none; stroke-width: 8; stroke-linecap: round;
+                 transition: stroke-dashoffset .35s ease, stroke .35s ease; }
+  .gauge-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .torque-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .torque-unit { font-size: .56rem; color: var(--dim); margin-top: 2px; letter-spacing: .06em; }
+
+  .card-foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: .64rem;
+    color: var(--dim);
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .card-foot b { color: var(--text); }
+
+  /* ── FOOTER ── */
+  footer {
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: .6rem;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer span.src { color: var(--accent2); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 980px) {
+    .motor-grid { grid-template-columns: repeat(2, 1fr); }
+    .cfg-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .motor-grid { grid-template-columns: 1fr; }
+    .cfg-grid { grid-template-columns: repeat(2, 1fr); }
+    .load-panel { flex-direction: column; align-items: flex-start; }
+    .cfg-toggle { margin-left: 0; }
+    .load-note { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+
+<body>
+<script src="/nav.js"></script>
+
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <h1>📐 Torque &amp; Load Analysis</h1>
+      <div class="eq">Static model &nbsp;·&nbsp; <b>τ = G(q) + Jᵀ(q)·F</b><sub>ext</sub> &nbsp;·&nbsp; q̇ = q̈ = 0</div>
+    </div>
+    <div class="conn-row">
+      <div id="conn-dot"></div>
+      <span id="conn-label">CONNECTING…</span>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span class="chip"><b>M4</b> → Base · J1 <span class="r">4:1</span></span>
+    <span class="chip"><b>M2</b> → Shoulder · J2 <span class="r">4:1</span></span>
+    <span class="chip"><b>M3</b> → Elbow · J3 <span class="r">1:1</span></span>
+    <span class="chip"><b>M1</b> → Wrist Roll · J4 <span class="r">3:1</span></span>
+    <span class="chip"><b>M5 + M6</b> → Wrist Differential · J5 / J6 <span class="r">2:1</span></span>
+  </div>
+
+  <div class="warn-banner" id="warn-banner">
+    <span>⚠ Arm dimensions, link masses and motor torque ratings below are placeholders. Open <b>Arm Configuration</b> and enter your measured values before trusting these numbers.</span>
+    <button id="warn-dismiss" aria-label="Dismiss">×</button>
+  </div>
+
+  <section class="load-panel">
+    <div class="load-field">
+      <label>LOAD</label>
+      <div class="load-input-row">
+        <input type="number" id="load-kg" value="0" step="0.05" min="0" oninput="recompute()"/>
+        <span class="unit">kg</span>
+      </div>
+      <div class="load-sub">≈ <b id="load-n">0.00</b> N, applied at the end-effector</div>
+    </div>
+    <div class="load-note">
+      Manual entry for now — once the HX711 load cell is calibrated, this field will be driven by
+      live sensor data instead of a typed value. Motor angles below are already <span class="src">live</span>,
+      streamed from ROS 2 over <span class="src">/arm/status</span>.
+    </div>
+    <button class="cfg-toggle" id="cfg-toggle" onclick="toggleConfig()">⚙ Arm Configuration</button>
+  </section>
+
+  <section class="config-panel" id="config-panel">
+    <div class="sec-title">⚙ Arm Configuration</div>
+
+    <div class="cfg-group">
+      <div class="cfg-group-title">DH Parameters (meters)</div>
+      <div class="cfg-grid">
+        <div class="cfg-field"><label>d1 — base height</label><input type="number" id="dh-d1" value="0.12" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>a2 — upper arm length</label><input type="number" id="dh-a2" value="0.25" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>d4 — forearm length</label><input type="number" id="dh-d4" value="0.20" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>d6 — wrist → end-effector</label><input type="number" id="dh-d6" value="0.12" step="0.01" oninput="recompute()"></div>
+      </div>
+    </div>
+
+    <div class="cfg-group">
+      <div class="cfg-group-title">Link Masses (kg)</div>
+      <div class="cfg-grid">
+        <div class="cfg-field"><label>Link 1 — Base→Shoulder</label><input type="number" id="mass-1" value="0.40" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>Link 2 — Shoulder→Elbow</label><input type="number" id="mass-2" value="0.30" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>Link 3 — Elbow→Wrist Roll</label><input type="number" id="mass-3" value="0.25" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>Link 4 — Wrist Roll→Pitch</label><input type="number" id="mass-4" value="0.15" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>Link 5 — Wrist Pitch→Yaw</label><input type="number" id="mass-5" value="0.10" step="0.01" oninput="recompute()"></div>
+        <div class="cfg-field"><label>Link 6 — Wrist Yaw→EE</label><input type="number" id="mass-6" value="0.05" step="0.01" oninput="recompute()"></div>
+      </div>
+    </div>
+
+    <div class="cfg-group">
+      <div class="cfg-group-title">Gear / Belt Ratios (motor turns per joint turn)</div>
+      <div class="cfg-grid">
+        <div class="cfg-field"><label>J1 — Base (M4)</label><input type="number" id="gear-J1" value="4" step="0.1" oninput="recompute()"></div>
+        <div class="cfg-field"><label>J2 — Shoulder (M2)</label><input type="number" id="gear-J2" value="4" step="0.1" oninput="recompute()"></div>
+        <div class="cfg-field"><label>J3 — Elbow (M3)</label><input type="number" id="gear-J3" value="1" step="0.1" oninput="recompute()"></div>
+        <div class="cfg-field"><label>J4 — Wrist Roll (M1)</label><input type="number" id="gear-J4" value="3" step="0.1" oninput="recompute()"></div>
+        <div class="cfg-field"><label>J5/J6 — Wrist diff. (M5,M6)</label><input type="number" id="gear-J56" value="2" step="0.1" oninput="recompute()"></div>
+      </div>
+      <div class="cfg-flags">
+        <label><input type="checkbox" id="invert-pitch" onchange="recompute()"> Invert wrist pitch (J5)</label>
+        <label><input type="checkbox" id="invert-yaw" onchange="recompute()"> Invert wrist yaw (J6)</label>
+      </div>
+    </div>
+
+    <div class="cfg-group">
+      <div class="cfg-group-title">Motor Rated Torque (N·m) — gauge reference bands</div>
+      <div class="cfg-grid">
+        <div class="cfg-field"><label>M1 (NEMA17)</label><input type="number" id="rated-M1" value="0.45" step="0.05" oninput="recompute()"></div>
+        <div class="cfg-field"><label>M2 (NEMA23)</label><input type="number" id="rated-M2" value="1.90" step="0.05" oninput="recompute()"></div>
+        <div class="cfg-field"><label>M3 (NEMA17)</label><input type="number" id="rated-M3" value="0.45" step="0.05" oninput="recompute()"></div>
+        <div class="cfg-field"><label>M4 (NEMA23)</label><input type="number" id="rated-M4" value="1.90" step="0.05" oninput="recompute()"></div>
+        <div class="cfg-field"><label>M5 (NEMA17)</label><input type="number" id="rated-M5" value="0.45" step="0.05" oninput="recompute()"></div>
+        <div class="cfg-field"><label>M6 (NEMA17)</label><input type="number" id="rated-M6" value="0.45" step="0.05" oninput="recompute()"></div>
+      </div>
+    </div>
+
+    <div class="cfg-actions">
+      <button class="btn-reset" onclick="resetConfig()">↺ Reset to defaults</button>
+    </div>
+  </section>
+
+  <div class="sec-title">🔩 Motor Torque (M1 – M6)</div>
+  <div class="motor-grid" id="motor-grid"></div>
+
+  <footer>
+    <span>ROS 2 topic: <span class="src">/arm/status</span> → joint angles &nbsp;|&nbsp; Load: manual (HX711 pending)</span>
+    <span id="last-update">No data yet</span>
+  </footer>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  SOCKET.IO — live motor angles from the existing ROS 2 bridge
+// ════════════════════════════════════════════════════════════════
+const socket = io({ transports: ['websocket'], withCredentials: true });
+const dot   = document.getElementById('conn-dot');
+const label = document.getElementById('conn-label');
+socket.on('connect',    () => { dot.className='ok';  label.textContent='CONNECTED'; });
+socket.on('disconnect', () => { dot.className='err'; label.textContent='DISCONNECTED'; });
+
+const state = { positions: [0,0,0,0,0,0] }; // index 0..5 = code M1..M6, degrees
+
+socket.on('arm_status', (d) => {
+  if (d && d.positions) {
+    state.positions = d.positions;
+    document.getElementById('last-update').textContent =
+      'Last update: ' + new Date().toTimeString().slice(0, 8);
+    recompute();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════
+//  STATIC TORQUE MODEL  —  τ = G(q) + Jᵀ(q)·F_ext
+//  Direct port of the validated MATLAB DH / Jacobian / Gravity model,
+//  units switched from mm→m so torque comes out directly in N·m.
+// ════════════════════════════════════════════════════════════════
+function dhMatrix(t, d, a, al) {
+  const ct = Math.cos(t), st = Math.sin(t), ca = Math.cos(al), sa = Math.sin(al);
+  return [
+    [ct, -st*ca,  st*sa, a*ct],
+    [st,  ct*ca, -ct*sa, a*st],
+    [0,   sa,     ca,    d   ],
+    [0,   0,      0,     1   ],
+  ];
+}
+function matMul(A, B) {
+  const out = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+  for (let i=0;i<4;i++) for (let j=0;j<4;j++) { let s=0; for(let k=0;k<4;k++) s+=A[i][k]*B[k][j]; out[i][j]=s; }
+  return out;
+}
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function sub(a,b){ return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+const I4 = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+
+function FK(q, dh) {
+  const T01 = dhMatrix(q[0], dh.d1, dh.a1, Math.PI/2);
+  const T02 = matMul(T01, dhMatrix(q[1], 0, dh.a2, 0));
+  const T03 = matMul(T02, dhMatrix(q[2], 0, 0, Math.PI/2));
+  const T04 = matMul(T03, dhMatrix(q[3], dh.d4, 0, -Math.PI/2));
+  const T05 = matMul(T04, dhMatrix(q[4], 0, 0, Math.PI/2));
+  const T06 = matMul(T05, dhMatrix(q[5], dh.d6, 0, 0));
+  const T = [I4, T01, T02, T03, T04, T05, T06];
+  const Pe = [T06[0][3], T06[1][3], T06[2][3]];
+  return { T, Pe };
+}
+
+function JAC(T, Pe) {
+  const J = [[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]];
+  for (let i=0;i<6;i++) {
+    const z = [T[i][0][2], T[i][1][2], T[i][2][2]];
+    const p = [T[i][0][3], T[i][1][3], T[i][2][3]];
+    const lin = cross(z, sub(Pe, p));
+    J[0][i]=lin[0]; J[1][i]=lin[1]; J[2][i]=lin[2];
+    J[3][i]=z[0];   J[4][i]=z[1];   J[5][i]=z[2];
+  }
+  return J;
+}
+
+function GRAV(T, mL) {
+  const G = [0,0,0,0,0,0];
+  const g = [0,0,-9.81];
+  for (let i=0;i<6;i++) {
+    const Pcom = [
+      (T[i][0][3]+T[i+1][0][3])/2,
+      (T[i][1][3]+T[i+1][1][3])/2,
+      (T[i][2][3]+T[i+1][2][3])/2,
+    ];
+    for (let j=0;j<=i;j++) {
+      const z = [T[j][0][2], T[j][1][2], T[j][2][2]];
+      const p = [T[j][0][3], T[j][1][3], T[j][2][3]];
+      const col = cross(z, sub(Pcom, p));
+      G[j] += mL[i] * (col[0]*g[0] + col[1]*g[1] + col[2]*g[2]);
+    }
+  }
+  return G;
+}
+
+function jacTransposeForce(J, F) {
+  const out = [0,0,0,0,0,0];
+  for (let k=0;k<6;k++) { let s=0; for (let r=0;r<6;r++) s += J[r][k]*F[r]; out[k]=s; }
+  return out;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CODE MOTOR  ↔  MODEL JOINT  MAPPING
+//  M4→J1(Base) · M2→J2(Shoulder) · M3→J3(Elbow) · M1→J4(WristRoll)
+//  M5,M6 → bevel differential → J5(WristPitch) / J6(WristYaw)
+// ════════════════════════════════════════════════════════════════
+function codeAnglesToJoints(pos, cfg) {
+  const toRad = d => d * Math.PI / 180;
+  const [m1,m2,m3,m4,m5,m6] = pos;
+
+  const th1 = toRad(m4) / cfg.gear.J1;
+  const th2 = toRad(m2) / cfg.gear.J2;
+  const th3 = toRad(m3) / cfg.gear.J3;
+  const th4 = toRad(m1) / cfg.gear.J4;
+
+  const sP = cfg.invertPitch ? -1 : 1;
+  const sY = cfg.invertYaw   ? -1 : 1;
+  const th5 = sP * (toRad(m5) + toRad(m6)) / (2 * cfg.gear.J56);
+  const th6 = sY * (toRad(m5) - toRad(m6)) / (2 * cfg.gear.J56);
+
+  return [th1, th2, th3, th4, th5, th6];
+}
+
+function jointTorqueToMotorTorque(tauJ, cfg) {
+  const tauM = [0,0,0,0,0,0]; // M1..M6
+  tauM[3] = tauJ[0] / cfg.gear.J1;                    // M4 ← J1
+  tauM[1] = tauJ[1] / cfg.gear.J2;                    // M2 ← J2
+  tauM[2] = tauJ[2] / cfg.gear.J3;                    // M3 ← J3
+  tauM[0] = tauJ[3] / cfg.gear.J4;                    // M1 ← J4
+  tauM[4] = (tauJ[4] + tauJ[5]) / (2 * cfg.gear.J56); // M5
+  tauM[5] = (tauJ[4] - tauJ[5]) / (2 * cfg.gear.J56); // M6
+  return tauM;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CONFIG  (read live from the on-page Arm Configuration panel)
+// ════════════════════════════════════════════════════════════════
+function readConfig() {
+  const num = id => parseFloat(document.getElementById(id).value) || 0;
+  return {
+    dh: { d1: num('dh-d1'), a1: 0, a2: num('dh-a2'), d4: num('dh-d4'), d6: num('dh-d6') },
+    mass: [num('mass-1'), num('mass-2'), num('mass-3'), num('mass-4'), num('mass-5'), num('mass-6')],
+    gear: { J1: num('gear-J1'), J2: num('gear-J2'), J3: num('gear-J3'), J4: num('gear-J4'), J56: num('gear-J56') },
+    rated: [num('rated-M1'), num('rated-M2'), num('rated-M3'), num('rated-M4'), num('rated-M5'), num('rated-M6')],
+    invertPitch: document.getElementById('invert-pitch').checked,
+    invertYaw:   document.getElementById('invert-yaw').checked,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UI — gauge cards
+// ════════════════════════════════════════════════════════════════
+const MOTOR_META = [
+  { id:'M1', joint:'J4',    jointName:'Wrist Roll',      ls:'LS7' },
+  { id:'M2', joint:'J2',    jointName:'Shoulder' },
+  { id:'M3', joint:'J3',    jointName:'Elbow' },
+  { id:'M4', joint:'J1',    jointName:'Base',            ls:'LS6' },
+  { id:'M5', joint:'J5/J6', jointName:'Wrist Diff Σ(+)' },
+  { id:'M6', joint:'J5/J6', jointName:'Wrist Diff Δ(−)' },
+];
+
+function buildCards() {
+  const grid = document.getElementById('motor-grid');
+  grid.innerHTML = MOTOR_META.map(m => `
+    <div class="motor-card" id="card-${m.id}">
+      <div class="card-head">
+        <span class="motor-tag">${m.id}${m.ls ? `<span class="ls-chip">${m.ls}</span>` : ''}</span>
+        <span class="joint-tag">${m.jointName} · ${m.joint}</span>
+      </div>
+      <div class="gauge-wrap" id="gauge-${m.id}"></div>
+      <div class="card-foot">
+        <span>θ <b id="ang-${m.id}">—</b></span>
+        <span id="pct-${m.id}">0%</span>
+      </div>
+    </div>`).join('');
+}
+
+function ringSVG(pct, color) {
+  const clamped = Math.max(0, Math.min(pct, 1));
+  const r = 40, c = 2 * Math.PI * r;
+  const offset = c * (1 - clamped);
+  return `<svg viewBox="0 0 100 100" class="gauge-ring">
+      <circle cx="50" cy="50" r="${r}" class="gauge-track"></circle>
+      <circle cx="50" cy="50" r="${r}" class="gauge-fill"
+              style="stroke:${color}; stroke-dasharray:${c.toFixed(2)}; stroke-dashoffset:${offset.toFixed(2)};"></circle>
+    </svg>`;
+}
+
+function zoneColor(pct) {
+  if (pct >= 0.85) return 'var(--red)';
+  if (pct >= 0.6)  return 'var(--yellow)';
+  return 'var(--green)';
+}
+
+function updateCard(id, torque, rated, angleDeg) {
+  const pct = rated > 0 ? Math.abs(torque) / rated : 0;
+  const color = zoneColor(pct);
+  document.getElementById(`gauge-${id}`).innerHTML = ringSVG(pct, color) + `
+    <div class="gauge-center">
+      <span class="torque-val">${torque.toFixed(3)}</span>
+      <span class="torque-unit">N·m</span>
+    </div>`;
+  document.getElementById(`ang-${id}`).textContent = `${angleDeg.toFixed(1)}°`;
+  document.getElementById(`pct-${id}`).textContent = `${Math.round(pct * 100)}%${pct > 1 ? ' ⚠' : ''}`;
+  document.getElementById(`card-${id}`).classList.toggle('overload', pct > 1);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MAIN RECOMPUTE LOOP
+// ════════════════════════════════════════════════════════════════
+function recompute() {
+  const cfg = readConfig();
+  const loadKg = parseFloat(document.getElementById('load-kg').value) || 0;
+  document.getElementById('load-n').textContent = (loadKg * 9.81).toFixed(2);
+
+  const q = codeAnglesToJoints(state.positions, cfg);
+  const { T, Pe } = FK(q, cfg.dh);
+  const J = JAC(T, Pe);
+  const G = GRAV(T, cfg.mass);
+  const Fext = [0, 0, -loadKg * 9.81, 0, 0, 0];
+  const JtF = jacTransposeForce(J, Fext);
+  const tauJoint = G.map((g, i) => g + JtF[i]);
+  const tauMotor = jointTorqueToMotorTorque(tauJoint, cfg);
+
+  const ids = ['M1','M2','M3','M4','M5','M6'];
+  ids.forEach((id, i) => updateCard(id, tauMotor[i], cfg.rated[i], state.positions[i] || 0));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CONFIG PANEL TOGGLE / RESET / WARNING DISMISS
+// ════════════════════════════════════════════════════════════════
+const DEFAULTS = {
+  'dh-d1':'0.12','dh-a2':'0.25','dh-d4':'0.20','dh-d6':'0.12',
+  'mass-1':'0.40','mass-2':'0.30','mass-3':'0.25','mass-4':'0.15','mass-5':'0.10','mass-6':'0.05',
+  'gear-J1':'4','gear-J2':'4','gear-J3':'1','gear-J4':'3','gear-J56':'2',
+  'rated-M1':'0.45','rated-M2':'1.90','rated-M3':'0.45','rated-M4':'1.90','rated-M5':'0.45','rated-M6':'0.45',
+};
+
+function toggleConfig() {
+  document.getElementById('config-panel').classList.toggle('open');
+}
+function resetConfig() {
+  Object.entries(DEFAULTS).forEach(([id, val]) => { document.getElementById(id).value = val; });
+  document.getElementById('invert-pitch').checked = false;
+  document.getElementById('invert-yaw').checked = false;
+  recompute();
+}
+document.getElementById('warn-dismiss').addEventListener('click', () => {
+  document.getElementById('warn-banner').classList.add('hidden');
+});
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+buildCards();
+recompute();
+</script>
+</body>
+</html>

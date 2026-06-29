@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Management | ARM CTRL</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Custom fonts and icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <style>
+    /* Custom overrides */
+    body {
+      background: #0a0b0e;
+      color: #c8d6e5;
+      font-family: 'Space Grotesk', sans-serif;
+      padding-left: 220px;
+      transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body.nav-col {
+      padding-left: 64px;
+    }
+    .msym {
+      font-family: 'Material Symbols Outlined';
+      font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+      font-style: normal;
+      line-height: 1;
+      vertical-align: middle;
+    }
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      padding: 10px 18px;
+      background: #0d1015;
+      border-left: 3px solid #00e5ff;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c3f5ff;
+      z-index: 9999;
+      transform: translateY(60px);
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.error {
+      border-left-color: #ff3366;
+      color: #ff3366;
+    }
+    .toast.success {
+      border-left-color: #b9f61d;
+      color: #b9f61d;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 3px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0b0e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1a2530;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar injected by nav.js -->
+  <script src="/nav.js"></script>
+
+  <!-- Main content -->
+  <main class="p-8 max-w-6xl mx-auto">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">ACCOUNT <span class="text-[#00e5ff]">MANAGEMENT</span></h1>
+      <p class="text-sm text-[#5a6e74] mt-1 uppercase tracking-wide">Control your profile, security and active sessions</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Profile panel -->
+      <div class="bg-[#0e0f13] border border-[#1a2028] rounded-xl p-6">
+        <h2 class="text-xs uppercase tracking-wider text-[#3d4f55] mb-4">PROFILE</h2>
+        <div class="flex flex-col items-center">
+          <img id="avatarPreview" src="/api/me/avatar" alt="avatar" class="w-28 h-28 rounded-full border-2 border-[#00e5ff] object-cover glow" onerror="this.src='/api/me/avatar?fallback=1'" />
+          <label for="avatarInput" class="group mt-5 w-full cursor-pointer">
+            <div class="relative overflow-hidden rounded-lg border border-[#00e5ff]/30 bg-black/30 hover:border-[#00e5ff] transition-all duration-200">
+              <div class="relative flex items-center justify-center gap-3 py-3 px-4">
+                <div class="w-8 h-8 rounded-md bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center">
+                  <span class="msym text-[#00e5ff] text-base">upload</span>
+                </div>
+                <div class="text-left">
+                  <div class="text-sm font-semibold text-white">Upload Image</div>
+                  <div class="text-[11px] text-[#5a6e74]">JPG · PNG · WEBP</div>
+                </div>
+              </div>
+            </div>
+          </label>
+          <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp" class="hidden" />
+          <div id="profileDisplayName" class="mt-4 text-xs text-[#5a6e74] text-center"></div>
+          <button id="logoutBtn" class="mt-6 w-full bg-[#ff3366]/10 border border-[#ff3366]/30 text-[#ff3366] py-2 rounded-lg hover:bg-[#ff3366] hover:text-white transition-all">
+            <span class="msym text-base align-middle mr-1">logout</span> LOGOUT
+          </button>
+        </div>
+      </div>
+
+      <!-- Settings panel -->
+      <div class="lg:col-span-2 bg-[#0e0f13] border border-[#1a2028] rounded-xl p-6">
+        <h2 class="text-xs uppercase tracking-wider text-[#3d4f55] mb-6">ACCOUNT SETTINGS</h2>
+        <form id="accountForm" class="space-y-5">
+          <div>
+            <label class="text-xs text-[#5a6e74] uppercase tracking-wide">Display Name</label>
+            <input type="text" name="display_name" id="displayNameInput" class="w-full bg-black/30 border border-[#1a2028] rounded-lg p-3 text-white focus:outline-none focus:border-[#00e5ff]/50 transition" placeholder="Your display name" />
+          </div>
+          <div>
+            <label class="text-xs text-[#5a6e74] uppercase tracking-wide">Email</label>
+            <input type="email" name="email" id="emailInput" class="w-full bg-black/30 border border-[#1a2028] rounded-lg p-3 text-white focus:outline-none focus:border-[#00e5ff]/50 transition" placeholder="user@example.com" />
+          </div>
+          <div>
+            <label class="text-xs text-[#5a6e74] uppercase tracking-wide">New Password (leave empty to keep current)</label>
+            <input type="password" name="password" id="passwordInput" class="w-full bg-black/30 border border-[#1a2028] rounded-lg p-3 text-white focus:outline-none focus:border-[#00e5ff]/50 transition" placeholder="Min 8 characters" />
+          </div>
+          <button type="submit" class="w-full bg-[#00e5ff] text-black font-bold py-3 rounded-lg hover:opacity-90 transition-all">
+            <span class="msym text-base align-middle mr-1">save</span> SAVE CHANGES
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Sessions panel -->
+    <div class="mt-6 bg-[#0e0f13] border border-[#1a2028] rounded-xl p-6">
+      <h2 class="text-xs uppercase tracking-wider text-[#3d4f55] mb-4">ACTIVE SESSIONS</h2>
+      <div id="sessionsList" class="space-y-2 text-xs text-[#5a6e74]"></div>
+      <div id="noSessionsMsg" class="text-center py-4 text-[#5a6e74] italic hidden">No active sessions</div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Helper function for toast notifications
+    function showToast(msg, type = "success") {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = `toast show ${type === 'error' ? 'error' : 'success'}`;
+      clearTimeout(window.toastTimer);
+      window.toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Load user profile and sessions
+    async function loadUserData() {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          window.location.href = '/login';
+          return;
+        }
+        document.getElementById('displayNameInput').value = data.display_name || data.username || '';
+        document.getElementById('emailInput').value = data.email || '';
+        document.getElementById('profileDisplayName').innerHTML = `<span class="msym text-base align-middle mr-1">person</span> ${data.display_name || data.username}`;
+        // Refresh avatar (prevent caching)
+        const avatarImg = document.getElementById('avatarPreview');
+        if (avatarImg) avatarImg.src = `/api/me/avatar?t=${Date.now()}`;
+        await loadSessions();
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to load profile", "error");
+      }
+    }
+
+    async function loadSessions() {
+      try {
+        const res = await fetch('/api/me/sessions', { credentials: 'include' });
+        if (!res.ok) throw new Error('Sessions fetch failed');
+        const data = await res.json();
+        const container = document.getElementById('sessionsList');
+        const noMsg = document.getElementById('noSessionsMsg');
+        if (!data.sessions || data.sessions.length === 0) {
+          container.innerHTML = '';
+          noMsg.classList.remove('hidden');
+          return;
+        }
+        noMsg.classList.add('hidden');
+        container.innerHTML = '';
+        for (const sess of data.sessions) {
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center border-b border-white/5 pb-2';
+          const ipSpan = document.createElement('span');
+          ipSpan.innerHTML = `<span class="msym text-sm align-middle mr-1">devices</span> ${sess.ip || 'Unknown IP'}`;
+          const timeSpan = document.createElement('span');
+          const lastSeen = new Date(sess.last_seen * 1000).toLocaleString();
+          timeSpan.innerHTML = `<span class="msym text-sm align-middle mr-1">schedule</span> ${lastSeen}`;
+          const deleteBtn = document.createElement('button');
+          deleteBtn.innerHTML = '<span class="msym text-sm">delete</span>';
+          deleteBtn.className = 'text-[#ff3366]/70 hover:text-[#ff3366] transition';
+          deleteBtn.onclick = async () => {
+            if (confirm('Terminate this session?')) {
+              const delRes = await fetch(`/api/me/sessions/${sess.id}`, { method: 'DELETE', credentials: 'include' });
+              if (delRes.ok) {
+                showToast('Session terminated');
+                loadSessions();
+              } else {
+                showToast('Failed to terminate session', 'error');
+              }
+            }
+          };
+          div.appendChild(ipSpan);
+          div.appendChild(timeSpan);
+          div.appendChild(deleteBtn);
+          container.appendChild(div);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast("Could not load sessions", "error");
+      }
+    }
+
+    // Avatar upload
+    document.getElementById('avatarInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('avatar', file);
+      try {
+        const res = await fetch('/api/me/avatar', { method: 'POST', body: formData, credentials: 'include' });
+        const data = await res.json();
+        if (data.ok && data.avatar_url) {
+          document.getElementById('avatarPreview').src = data.avatar_url + '?t=' + Date.now();
+          showToast('Avatar updated');
+        } else {
+          showToast(data.message || 'Upload failed', 'error');
+        }
+      } catch (err) {
+        showToast('Upload error', 'error');
+      }
+    });
+
+    // Update profile and password
+    document.getElementById('accountForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const displayName = document.getElementById('displayNameInput').value.trim();
+      const email = document.getElementById('emailInput').value.trim();
+      const newPassword = document.getElementById('passwordInput').value;
+      try {
+        const profileRes = await fetch('/api/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ display_name: displayName, email: email })
+        });
+        if (!profileRes.ok) throw new Error('Profile update failed');
+        if (newPassword) {
+          if (newPassword.length < 8) {
+            showToast('Password must be at least 8 characters', 'error');
+            return;
+          }
+          const passRes = await fetch('/api/me/password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ new_password: newPassword })
+          });
+          if (!passRes.ok) {
+            const errData = await passRes.json();
+            throw new Error(errData.message || 'Password change failed');
+          }
+        }
+        showToast('Profile updated successfully');
+        await loadUserData();
+        document.getElementById('passwordInput').value = '';
+      } catch (err) {
+        showToast(err.message || 'Update failed', 'error');
+      }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/login';
+    });
+
+    // Initialize
+    loadUserData();
+  </script>
+</body>
+</html>

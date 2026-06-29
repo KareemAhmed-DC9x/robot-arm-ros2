@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ARM MONITOR — REAL STL VISUALIZATION</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<!-- Three.js core & extensions -->
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+    }
+  }
+</script>
+<style>
+
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap');
+  :root { --bg: #060810; --panel: #0c0e14; --border: #161c26; --accent: #00e5ff; --green: #00ff87; --orange: #ff9500; --red: #ff3366; --text: #b8cce0; --dim: #3a4a5e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Space Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .logo { font-family: 'Orbitron', monospace; font-size: 1.1rem; font-weight: 900; letter-spacing: .14em; color: var(--accent); }
+  .logo span { color: var(--orange); }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  #conn-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); transition: all .3s; }
+  #conn-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  #conn-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  #conn-txt { font-size: .7rem; letter-spacing: .08em; color: var(--dim); }
+  .nav-link { font-size: .7rem; color: var(--dim); text-decoration: none; border: 1px solid var(--border); padding: 5px 14px; letter-spacing: .06em; transition: all .15s; }
+  .nav-link:hover { color: var(--accent); border-color: var(--accent); }
+  .content { flex: 1; display: grid; grid-template-columns: 1fr 300px; overflow: hidden; }
+  #canvas-wrap { position: relative; overflow: hidden; background: radial-gradient(ellipse at center, #0d1520 0%, #060810 70%); }
+  #three-canvas { display: block; width: 100%; height: 100%; }
+  .side { display: flex; flex-direction: column; border-left: 1px solid var(--border); overflow-y: auto; }
+  .side-section { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .sec-title { font-family: 'Orbitron', monospace; font-size: .58rem; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; margin-bottom: 14px; }
+  .joint-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .joint-label { font-family: 'Orbitron', monospace; font-size: .65rem; color: var(--dim); width: 28px; }
+  .joint-bar-wrap { flex: 1; height: 4px; background: var(--border); position: relative; }
+  .joint-bar { height: 100%; background: var(--accent); transition: width .2s ease; }
+  .joint-bar.moving { background: var(--orange); }
+  .joint-bar.moving::after { content: ''; position: absolute; right: -4px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px var(--orange); animation: blink 0.7s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .joint-val { font-size: .75rem; font-weight: 700; min-width: 60px; text-align: right; }
+  .joint-val.moving { color: var(--orange); }
+  .tele-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tele-card { background: #07090f; border: 1px solid var(--border); padding: 10px; }
+  .tele-key { font-size: .58rem; color: var(--dim); }
+  .tele-val { font-family: 'Orbitron', monospace; font-size: .9rem; font-weight: 700; color: var(--accent); margin-top: 3px; }
+  #log { flex: 1; overflow-y: auto; font-size: .62rem; line-height: 1.8; padding: 12px 16px; color: var(--dim); }
+  #log .rx { color: var(--green); }
+  #log .info { color: var(--dim); }
+  #log .err { color: var(--red); }
+  .ts { color: #1c2535; margin-right: 6px; }
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ARM<span>.</span>MONITOR <span style="font-size:0.6rem;">(STL REAL)</span></div>
+  <div class="header-right">
+    <a class="nav-link" href="/">⬅ CONTROL</a>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="conn-dot"></div>
+      <span id="conn-txt">CONNECTING</span>
+    </div>
+  </div>
+</header>
+
+<div class="content">
+  <div id="canvas-wrap">
+    <canvas id="three-canvas"></canvas>
+  </div>
+  <div class="side">
+    <div class="side-section"><div class="sec-title">⚙ JOINT ANGLES</div><div id="joints-list"></div></div>
+    <div class="side-section">
+      <div class="sec-title">📊 TELEMETRY</div>
+      <div class="tele-grid">
+        <div class="tele-card"><div class="tele-key">MOVING</div><div class="tele-val" id="tele-moving">0</div></div>
+        <div class="tele-card"><div class="tele-key">STOPPED</div><div class="tele-val" id="tele-stopped">6</div></div>
+        <div class="tele-card"><div class="tele-key">UPDATE Hz</div><div class="tele-val" id="tele-hz">—</div></div>
+        <div class="tele-card"><div class="tele-key">LATENCY</div><div class="tele-val" id="tele-lat">—</div></div>
+      </div>
+    </div>
+    <div class="sec-title" style="padding:14px 20px 0">📡 RAW</div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+// ========== KINEMATIC DEFINITION (FIXED STABLE VERSION) ==========
+
+const links = [
+  {
+    name: 'base_link',
+    file: 'base_link.STL',
+    parent: null,
+    origin: { xyz: [0, 0, 0], rpy: [0, 0, 0] }, 
+    joint: null
+  },
+
+  {
+    name: 'Link_1',
+    file: 'Link_1.STL',
+    parent: 'base_link',
+    origin: {
+      xyz: [-0.085045, -0.02338, 0.05461],
+      rpy: [0, 1, 0] 
+    },
+    joint: {
+      name: 'J1',
+      axis: [0, 0, 1], 
+      type: 'revolute'
+    }
+  },
+
+  {
+    name: 'link_2',
+    file: 'link_2.STL',
+    parent: 'Link_1',
+    origin: {
+      xyz: [0.0382536259263849, 0.051668749534595, 0.021149341570194],
+      rpy: [-0.00512350992962159, 0.000335362222588961, -0.145572250379198]
+    },
+    joint: {
+      name: 'J2',
+      axis: [0.034944307989049, -0.00485844404191168, 0.999377451647103],
+      type: 'revolute'
+    }
+  },
+
+  {
+    name: 'link_3',
+    file: 'link_3.STL',
+    parent: 'link_2',
+    origin: {
+      xyz: [-0.030454, 0.24813, 0.0022711],
+      rpy: [-0.0015307, 0.00017885, -0.043657]
+    },
+    joint: {
+      name: 'J3',
+      axis: [0.034944, -0.0048584, 0.99938],
+      type: 'revolute'
+    }
+  },
+
+  {
+    name: 'link_4',
+    file: 'link_4.STL',
+    parent: 'link_3',
+    origin: {
+      xyz: [-0.0031563, 0.014958, -0.026055],
+      rpy: [0.052009, 0.0079167, -0.001575]
+    },
+    joint: {
+      name: 'J4',
+      axis: [0.98817, 0.14959, -0.033825],
+      type: 'revolute'
+    }
+  },
+
+  {
+    name: 'bevel_right',
+    file: 'bevel_right.STL',
+    parent: 'link_4',
+    origin: {
+      xyz: [0.18861, 0.028336, -0.011446],
+      rpy: [0.010433, -0.067168, -1.3491]
+    },
+    joint: {
+      name: 'joint_right',
+      axis: [0.027039, 0.047169, 0.99852],
+      type: 'revolute'
+    }
+  },
+
+  {
+    name: 'bevel_left',
+    file: 'bevel_left.STL',
+    parent: 'link_4',
+    origin: {
+      xyz: [0.18885, 0.028764, -0.0023812],
+      rpy: [0.038171, -0.032713, 1.9603]
+    },
+    joint: {
+      name: 'joint_left',
+      axis: [0.066009, -0.0048508, 0.99781],
+      type: 'revolute',
+      mimic: {
+        joint: 'joint_right',
+        multiplier: 1,
+        offset: 0
+      }
+    }
+  },
+
+  {
+    name: 'bevel_support',
+    file: 'bevel_support.STL',
+    parent: 'link_4',
+    origin: {
+      xyz: [0.18506, 0.03801, -0.0020542],
+      rpy: [-0.0013771, -0.0025582, -0.053363]
+    },
+    joint: {
+      name: 'rotation_joint',
+      axis: [0.027039, 0.047169, 0.99852],
+      type: 'revolute',
+      mimic: {
+        joint: 'joint_right',
+        multiplier: 1,
+        offset: 0
+      }
+    }
+  },
+
+  {
+    name: 'bevel',
+    file: 'bevel.STL',
+    parent: 'bevel_support',
+    origin: {
+      xyz: [0.0054744, -0.0089744, -0.0049776],
+      rpy: [1.314, 0.22434, 0.11729]
+    },
+    joint: {
+      name: 'wrist',
+      axis: [0.97869, 0.20213, -0.036051],
+      type: 'revolute',
+      mimic: {
+        joint: 'joint_left',
+        multiplier: -1,
+        offset: 0
+      }
+    }
+  }
+];
+  // تعيين زوايا المفاصل الستة التي تتحكم (J1..J4, joint_right, wrist)
+  // حسب الوثيقة: J1, J2, J3, J4, joint_right, wrist
+  const jointMapping = {
+    'J1': 0, 'J2': 1, 'J3': 2, 'J4': 3, 'joint_right': 4, 'wrist': 5
+  };
+  let angles = [0,0,0,0,0,0];
+  let moving = [false,false,false,false,false,false];
+
+  // ========== إعداد المشهد THREE ==========
+  const canvas = document.getElementById('three-canvas');
+  const wrap = document.getElementById('canvas-wrap');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setClearColor(0x060810);
+  renderer.shadowMap.enabled = true;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+  camera.position.set(0.8, 0.6, 1.2);
+  camera.lookAt(0, 0.2, 0);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.autoRotate = false;
+  controls.target.set(0, 0.2, 0);
+  
+  // إضاءة
+  scene.add(new THREE.AmbientLight(0x404060));
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  mainLight.position.set(1, 2, 1);
+  mainLight.castShadow = true;
+  scene.add(mainLight);
+  const fillLight = new THREE.PointLight(0x4466cc, 0.4);
+  fillLight.position.set(0.5, 0.8, 0.5);
+  scene.add(fillLight);
+  const backLight = new THREE.PointLight(0xffaa33, 0.3);
+  backLight.position.set(-0.5, 0.3, -0.8);
+  scene.add(backLight);
+  
+  // أرضية شبكية
+  const gridHelper = new THREE.GridHelper(1.5, 20, 0x2a3a50, 0x1a2535);
+  gridHelper.position.y = -0.25;
+  scene.add(gridHelper);
+  
+  // ========== تحميل المجسمات وبناء الهيكل ==========
+  const loader = new STLLoader();
+  const meshesMap = new Map(); // تخزين المجموعات (Groups) لكل رابط
+  
+  // دالة لتحويل rpy (راديان) إلى Quaternion
+  function rpyToQuat(rpy) {
+    const [roll, pitch, yaw] = rpy;
+    const qx = Math.sin(roll/2) * Math.cos(pitch/2) * Math.cos(yaw/2) - Math.cos(roll/2) * Math.sin(pitch/2) * Math.sin(yaw/2);
+    const qy = Math.cos(roll/2) * Math.sin(pitch/2) * Math.cos(yaw/2) + Math.sin(roll/2) * Math.cos(pitch/2) * Math.sin(yaw/2);
+    const qz = Math.cos(roll/2) * Math.cos(pitch/2) * Math.sin(yaw/2) - Math.sin(roll/2) * Math.sin(pitch/2) * Math.cos(yaw/2);
+    const qw = Math.cos(roll/2) * Math.cos(pitch/2) * Math.cos(yaw/2) + Math.sin(roll/2) * Math.sin(pitch/2) * Math.sin(yaw/2);
+    return new THREE.Quaternion(qx, qy, qz, qw);
+  }
+  
+  // تحميل جميع الـ STL بشكل متسلسل
+  async function loadAllMeshes() {
+    for (let link of links) {
+      const url = `/meshes/${link.file}`;  // نفترض أن الملفات متاحة تحت مسار /meshes/
+      const geometry = await new Promise((resolve, reject) => {
+        loader.load(url, geo => resolve(geo), undefined, reject);
+      });
+      const material = new THREE.MeshStandardMaterial({ color: 0x9bb8da, metalness: 0.7, roughness: 0.4, flatShading: false });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      // نضيف المجسم إلى مجموعة (Group) خاصة به لنتمكن من تطبيق التحويلات
+      const group = new THREE.Group();
+      group.add(mesh);
+      // تطبيق تحويل origin (xyz + rpy) بالنسبة للأب
+      group.position.set(link.origin.xyz[0], link.origin.xyz[1], link.origin.xyz[2]);
+      group.quaternion.copy(rpyToQuat(link.origin.rpy));
+      meshesMap.set(link.name, group);
+    }
+    // بناء التسلسل الهرمي (parent-child)
+    for (let link of links) {
+      const group = meshesMap.get(link.name);
+      if (link.parent && meshesMap.has(link.parent)) {
+        meshesMap.get(link.parent).add(group);
+      } else if (!link.parent) {
+        scene.add(group);
+      }
+    }
+    // إضافة بعض الإضافات البصرية (مفاصل وهمية)
+    addDebugJoints();
+    // تحديث زوايا المفاصل الأولية
+    updateAllJoints();
+  }
+  
+  function addDebugJoints() {
+    // فقط لتزيين العرض - إضافة مجالات صغيرة عند مواقع المفاصل حسب الـ origin
+    // يمكن تجاهلها.
+  }
+  
+  // تحديث زوايا المفاصل استناداً إلى زوايا angles الحالية
+  function updateAllJoints() {
+    for (let link of links) {
+      if (link.joint && jointMapping[link.joint.name] !== undefined) {
+        const angleRad = angles[jointMapping[link.joint.name]] * Math.PI / 180;
+        const axis = new THREE.Vector3(link.joint.axis[0], link.joint.axis[1], link.joint.axis[2]).normalize();
+        const quat = new THREE.Quaternion().setFromAxisAngle(axis, angleRad);
+        // تقوم المجموعة (التي تحمل المجسم) بتطبيق الدوران النسبي – لكن هنا يجب أن يكون الدوران على المجموعة نفسها
+        const group = meshesMap.get(link.name);
+        if (group) {
+          // نحتاج إلى إعادة ضبط الدوران مع الحفاظ على origin (لأن origin تم تطبيقه مسبقاً)
+          // الحل: نضع الدوران على كائن وسيط (joint pivot) أفضل، لكن نبسط: نطبق الدوران مباشرة على group مع مراعاة أنه مركب من parent origin.
+          // لتبسيط التطبيق، سنقوم بإنشاء pivot لكل مفصل - لكن لتجنب التعقيد، لكل رابط لديه مفصل سنحرك group.rotation محلياً.
+          // نظراً لأن group يحوي origin بالفعل، فإن تدويره سيحقق الحركة حول محور المفصل.
+          group.rotation.setFromQuaternion(quat);
+        }
+      }
+    }
+    // تحديث مظهر الأجزاء المتحركة (تغيير لون مؤقت)
+    for (let i=0; i<angles.length; i++) {
+      const movingNow = moving[i];
+      // يمكن تمييز الأجزاء المرتبطة بهذا المفصل بتغيير لونها – لكنه مع STL صعب. نكتفي بإضاءة.
+    }
+  }
+  
+  // ========== واجهة المستخدم الزوايا ==========
+  const jointsListDiv = document.getElementById('joints-list');
+  for (let i=0; i<6; i++) {
+    jointsListDiv.innerHTML += `
+      <div class="joint-row">
+        <div class="joint-label">J${i+1}</div>
+        <div class="joint-bar-wrap"><div class="joint-bar" id="bar-${i}" style="width:50%"></div></div>
+        <div class="joint-val" id="jval-${i}">0.00°</div>
+      </div>`;
+  }
+  function updateJointUI() {
+    for (let i=0; i<6; i++) {
+      const pct = ((angles[i] + 180) / 360) * 100;
+      const bar = document.getElementById(`bar-${i}`);
+      const val = document.getElementById(`jval-${i}`);
+      if (bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+      if (bar) bar.className = 'joint-bar' + (moving[i] ? ' moving' : '');
+      if (val) {
+        val.textContent = angles[i].toFixed(2) + '°';
+        val.className = 'joint-val' + (moving[i] ? ' moving' : '');
+      }
+    }
+    document.getElementById('tele-moving').textContent = moving.filter(Boolean).length;
+    document.getElementById('tele-stopped').textContent = 6 - moving.filter(Boolean).length;
+  }
+  
+  // ========== Socket.IO & REST ==========
+  const socket = io({ transports: ['websocket'] });
+  const dot = document.getElementById('conn-dot');
+  const ctxt = document.getElementById('conn-txt');
+  socket.on('connect', () => { dot.className='ok'; ctxt.textContent='LIVE'; });
+  socket.on('disconnect', () => { dot.className='err'; ctxt.textContent='DISCONNECTED'; });
+  
+  let lastUpdate = Date.now();
+  socket.on('status', data => {
+    const now = Date.now();
+    document.getElementById('tele-lat').textContent = (now - lastUpdate) + 'ms';
+    lastUpdate = now;
+    if (data.positions) {
+      for (let i=0; i<6; i++) angles[i] = data.positions[i] ?? 0;
+    }
+    if (data.moving) {
+      for (let i=0; i<6; i++) moving[i] = data.moving[i] ?? false;
+    }
+    updateJointUI();
+    updateAllJoints();
+    if (data.raw) addLog(data.raw, 'rx');
+  });
+  
+  // إحصاء FPS
+  let frameCount = 0, lastFps = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    const fps = (frameCount / ((now - lastFps)/1000)).toFixed(1);
+    document.getElementById('tele-hz').textContent = fps;
+    frameCount = 0;
+    lastFps = now;
+  }, 2000);
+  
+  function addLog(msg, cls='info') {
+    const logEl = document.getElementById('log');
+    const ts = new Date().toTimeString().slice(0,8);
+    const div = document.createElement('div');
+    div.className = cls;
+    div.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+    logEl.prepend(div);
+    if (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
+  }
+  
+  // استعلام أولي عبر REST
+  fetch('/api/arm/status').then(r => r.json()).then(d => {
+    if (d.positions) for (let i=0; i<6; i++) angles[i] = d.positions[i];
+    if (d.moving) for (let i=0; i<6; i++) moving[i] = d.moving[i];
+    updateJointUI();
+    updateAllJoints();
+  }).catch(e => console.warn);
+  
+  // تشغيل تحميل المجسمات بعد تحميل الصفحة
+  loadAllMeshes().catch(err => { console.error('STL loading error:', err); addLog('⚠️ فشل تحميل بعض مجسمات STL', 'err'); });
+  
+  // حلقة العرض
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update(); // تحديث OrbitControls
+    renderer.render(scene, camera);
+    frameCount++;
+  }
+  animate();
+  
+  // ضبط الحجم عند تغيير النافذة
+  function resize() {
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  new ResizeObserver(resize).observe(wrap);
+</script>
+</body>
+</html>

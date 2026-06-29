@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ARM CONTROL | Secure Access</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "on-secondary":                "#253500",
+          "on-primary-fixed":            "#001f24",
+          "on-primary":                  "#00363d",
+          "surface-dim":                 "#131313",
+          "error":                       "#ffb4ab",
+          "primary":                     "#c3f5ff",
+          "inverse-primary":             "#006875",
+          "surface-tint":                "#00daf3",
+          "primary-fixed":               "#9cf0ff",
+          "tertiary-fixed-dim":          "#ffb3b3",
+          "surface-container-lowest":    "#0e0e0e",
+          "on-tertiary-fixed":           "#400009",
+          "surface-container-highest":   "#353534",
+          "surface-container-high":      "#2a2a2a",
+          "primary-container":           "#00e5ff",
+          "error-container":             "#93000a",
+          "inverse-on-surface":          "#313030",
+          "surface-container":           "#201f1f",
+          "surface-bright":              "#393939",
+          "secondary-container":         "#aeea01",
+          "on-surface-variant":          "#bac9cc",
+          "on-background":               "#e5e2e1",
+          "surface-container-low":       "#1c1b1b",
+          "background":                  "#131313",
+          "inverse-surface":             "#e5e2e1",
+          "surface":                     "#131313",
+          "outline-variant":             "#3b494c",
+          "on-error-container":          "#ffdad6",
+          "primary-fixed-dim":           "#00daf3",
+          "secondary":                   "#e1ffa0",
+          "on-primary-container":        "#00626e",
+          "surface-variant":             "#353534",
+          "secondary-fixed":             "#b9f61d",
+          "on-secondary-container":      "#4a6600",
+          "on-surface":                  "#e5e2e1",
+          "on-primary-fixed-variant":    "#004f58",
+          "outline":                     "#849396",
+          "tertiary":                    "#ffe7e6",
+          "on-error":                    "#690005"
+        },
+        fontFamily: {
+          "headline": ["Space Grotesk"],
+          "body":     ["Inter"],
+          "label":    ["Space Grotesk"]
+        },
+        borderRadius: { "DEFAULT": "0px", "lg": "0px", "xl": "0px", "full": "9999px" },
+      },
+    },
+  }
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass-panel {
+    background: rgba(53,53,52,0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .monospaced-data {
+    font-family: 'Inter', monospace;
+    font-feature-settings: "tnum","onum";
+  }
+
+  /* scan-line animation */
+  @keyframes scanline {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  .scanline {
+    animation: scanline 6s linear infinite;
+    background: linear-gradient(to bottom, transparent 0%, rgba(0,229,255,0.03) 50%, transparent 100%);
+    height: 60px;
+    position: fixed; inset-x: 0; top: 0;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  /* shake on error */
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-8px); }
+    40%     { transform: translateX( 8px); }
+    60%     { transform: translateX(-5px); }
+    80%     { transform: translateX( 5px); }
+  }
+  .shake { animation: shake .4s ease-in-out; }
+
+  /* blinking cursor in placeholder */
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .cursor { display:inline-block; animation: blink 1s step-start infinite; }
+
+  /* typing counter */
+  @keyframes countup {
+    from { content: "0x0000"; }
+    to   { content: "0xFFFF"; }
+  }
+
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 30px #0e0e0e inset !important;
+    -webkit-text-fill-color: #e5e2e1 !important;
+  }
+</style>
+</head>
+
+<body class="bg-surface-dim text-on-background font-body min-h-screen flex items-center justify-center selection:bg-primary-container selection:text-on-primary-container overflow-hidden">
+
+<!-- Scan-line overlay -->
+<div class="scanline"></div>
+
+<!-- Background decoration -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+  <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] transition-all duration-1000" id="glow-1"></div>
+  <div class="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-secondary/5 blur-[100px]"></div>
+  <!-- Grid -->
+  <div class="absolute inset-0 opacity-[0.03]"
+       style="background-image: radial-gradient(circle, #00E5FF 1px, transparent 1px); background-size: 40px 40px;"></div>
+  <!-- Diagonal accent line -->
+  <div class="absolute top-0 right-[20%] w-px h-full bg-gradient-to-b from-transparent via-primary/10 to-transparent"></div>
+  <div class="absolute top-0 left-[35%] w-px h-full bg-gradient-to-b from-transparent via-secondary/5 to-transparent"></div>
+</div>
+
+<!-- TOP-LEFT corner tag -->
+<div class="fixed top-6 left-6 flex items-center gap-3 pointer-events-none select-none z-20">
+  <div class="w-0.5 h-12 bg-gradient-to-b from-primary/40 to-transparent"></div>
+  <div class="text-[9px] font-label text-on-surface-variant/40 uppercase tracking-[0.2em] leading-tight">
+    6DOF ARM<br/>CTRL v3.0
+  </div>
+</div>
+
+<!-- BOTTOM-RIGHT watermark -->
+<div class="fixed bottom-5 right-6 font-label text-[9px] text-on-surface-variant/20 tracking-[0.35em] uppercase pointer-events-none select-none z-20">
+  SA-SYS-AUTH
+</div>
+
+<!-- Node indicators top-right -->
+<div class="fixed top-5 right-6 flex items-center gap-4 pointer-events-none select-none z-20">
+  <div class="flex items-center gap-1.5">
+    <div class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/20" id="node-uart"></div>
+    <span class="text-[9px] font-label text-on-surface-variant/30 uppercase tracking-widest">UART</span>
+  </div>
+  <div class="flex items-center gap-1.5">
+    <div class="w-1.5 h-1.5 rounded-full bg-on-surface-variant/20" id="node-ros"></div>
+    <span class="text-[9px] font-label text-on-surface-variant/30 uppercase tracking-widest">ROS2</span>
+  </div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<main class="relative z-10 w-full max-w-md px-6">
+
+  <!-- Brand -->
+  <div class="mb-10 text-center">
+    <div class="inline-flex items-center justify-center mb-5 relative">
+      <!-- Rotating ring -->
+      <div class="absolute w-16 h-16 border border-primary/10 rounded-full animate-spin" style="animation-duration:12s"></div>
+      <div class="absolute w-20 h-20 border border-secondary/5 rounded-full animate-spin" style="animation-duration:20s;animation-direction:reverse"></div>
+      <span class="material-symbols-outlined text-4xl text-primary relative z-10"
+            style="font-variation-settings:'FILL' 0,'wght' 100,'GRAD' 0,'opsz' 48">
+        precision_manufacturing
+      </span>
+    </div>
+    <h1 class="font-headline font-bold text-2xl tracking-[0.12em] text-primary uppercase">
+      ARM CONTROL
+    </h1>
+    <div class="flex items-center justify-center gap-2 mt-2">
+      <div class="w-1.5 h-1.5 bg-secondary-fixed animate-pulse"></div>
+      <span class="font-label text-[9px] tracking-[0.22em] text-on-surface-variant/60 uppercase">
+        Awaiting Authentication
+      </span>
+    </div>
+  </div>
+
+  <!-- Glass card -->
+  <div class="glass-panel border-l-2 border-primary/20 p-8 shadow-[0_0_60px_rgba(0,229,255,0.04)] relative overflow-hidden" id="login-card">
+    <!-- corner decoration -->
+    <div class="absolute top-0 right-0 w-8 h-8 border-t border-r border-primary/20"></div>
+    <div class="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-primary/10"></div>
+
+    <header class="mb-7 border-b border-outline-variant/15 pb-4">
+      <h2 class="font-headline text-sm font-semibold text-on-surface uppercase tracking-[0.18em]">Secure Access</h2>
+      <p class="text-[9px] text-on-surface-variant/50 uppercase tracking-tighter mt-1">6DOF KINETIC ENGINE | AUTH_V4.0</p>
+    </header>
+
+    <!-- Error message (hidden by default) -->
+    <div id="error-box"
+         class="hidden mb-5 p-3 bg-error-container/20 border-l-2 border-error flex items-center gap-2">
+      <span class="material-symbols-outlined text-error text-base"
+            style="font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20">
+        error_outline
+      </span>
+      <span id="error-text" class="text-[10px] text-error uppercase tracking-widest font-label">
+        Authentication Failed
+      </span>
+    </div>
+
+    <!-- Success message (hidden by default) -->
+    <div id="success-box"
+         class="hidden mb-5 p-3 bg-secondary-container/10 border-l-2 border-secondary-fixed flex items-center gap-2">
+      <span class="material-symbols-outlined text-secondary-fixed text-base"
+            style="font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20">
+        check_circle
+      </span>
+      <span class="text-[10px] text-secondary-fixed uppercase tracking-widest font-label">
+        Link Established — Redirecting…
+      </span>
+    </div>
+
+    <form id="login-form" class="space-y-5" autocomplete="off">
+
+      <!-- Username -->
+      <div class="space-y-1.5">
+        <label class="font-label text-[9px] text-on-surface-variant/70 uppercase tracking-[0.2em] flex justify-between" for="username">
+          <span>Operator ID</span>
+          <span class="text-primary/40 monospaced-data">REQ_UID</span>
+        </label>
+        <div class="relative group">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-on-surface-variant/50 group-focus-within:text-primary transition-colors duration-150">
+            <span class="material-symbols-outlined text-[18px]"
+                  style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">
+              badge
+            </span>
+          </div>
+          <input
+            id="username"
+            type="text"
+            placeholder="operator-id"
+            autocomplete="username"
+            class="w-full bg-surface-container-lowest border border-outline-variant/20 focus:border-primary/50 focus:ring-0 text-on-surface monospaced-data py-3 pl-10 pr-4 placeholder:text-on-surface-variant/25 text-sm transition-all duration-150 outline-none"
+            required
+          />
+          <!-- typing indicator -->
+          <div class="absolute inset-y-0 right-3 flex items-center">
+            <span id="uid-status" class="text-[8px] font-label text-on-surface-variant/20 uppercase tracking-widest transition-all duration-150"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="space-y-1.5">
+        <label class="font-label text-[9px] text-on-surface-variant/70 uppercase tracking-[0.2em] flex justify-between" for="password">
+          <span>Security Token</span>
+          <span class="text-primary/40 monospaced-data">AES_256</span>
+        </label>
+        <div class="relative group">
+          <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-on-surface-variant/50 group-focus-within:text-primary transition-colors duration-150">
+            <span class="material-symbols-outlined text-[18px]"
+                  style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">
+              key
+            </span>
+          </div>
+          <input
+            id="password"
+            type="password"
+            placeholder="••••••••••••"
+            autocomplete="current-password"
+            class="w-full bg-surface-container-lowest border border-outline-variant/20 focus:border-primary/50 focus:ring-0 text-on-surface monospaced-data py-3 pl-10 pr-12 placeholder:text-on-surface-variant/25 text-sm transition-all duration-150 outline-none"
+            required
+          />
+          <!-- Show/hide toggle -->
+          <button type="button" id="toggle-pw"
+                  class="absolute inset-y-0 right-3 flex items-center text-on-surface-variant/30 hover:text-primary transition-colors duration-100">
+            <span class="material-symbols-outlined text-[18px]" id="eye-icon"
+                  style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">
+              visibility_off
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Redirect target -->
+      <div class="space-y-1.5">
+        <label class="font-label text-[9px] text-on-surface-variant/70 uppercase tracking-[0.2em] flex justify-between">
+          <span>Interface Mode</span>
+          <span class="text-primary/40 monospaced-data">DST_NODE</span>
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center gap-2 p-2.5 bg-surface-container-lowest border border-outline-variant/20 cursor-pointer has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 transition-all duration-150">
+            <input type="radio" name="destination" value="/" class="accent-primary" checked/>
+            <span class="material-symbols-outlined text-[14px] text-primary/60"
+                  style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">
+              tune
+            </span>
+            <span class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant">CONTROL</span>
+          </label>
+          <label class="flex items-center gap-2 p-2.5 bg-surface-container-lowest border border-outline-variant/20 cursor-pointer has-[:checked]:border-secondary-fixed/50 has-[:checked]:bg-secondary/5 transition-all duration-150">
+            <input type="radio" name="destination" value="/monitor" class="accent-primary"/>
+            <span class="material-symbols-outlined text-[14px] text-secondary-fixed/60"
+                  style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">
+              monitor
+            </span>
+            <span class="text-[9px] font-label uppercase tracking-widest text-on-surface-variant">MONITOR</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Submit button -->
+      <div class="pt-3">
+        <button id="submit-btn"
+                class="group relative w-full bg-primary-container hover:bg-primary-container/90 active:scale-[0.98] transition-all duration-100 py-4 flex items-center justify-center gap-3 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                type="submit">
+          <!-- Kinetic sweep -->
+          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+          <!-- Loading spinner (hidden) -->
+          <div id="spinner" class="hidden w-4 h-4 border-2 border-on-primary-container/30 border-t-on-primary-container rounded-full animate-spin"></div>
+          <span id="btn-text" class="font-headline font-bold text-on-primary-container uppercase tracking-[0.18em] text-sm">
+            Establish Link
+          </span>
+          <span id="btn-icon" class="material-symbols-outlined text-on-primary-container text-lg"
+                style="font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24">
+            bolt
+          </span>
+        </button>
+      </div>
+    </form>
+
+    <!-- Footer -->
+    <footer class="mt-7 flex justify-between items-center text-[8px] font-label text-on-surface-variant/30 uppercase tracking-[0.2em]">
+      <div class="flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-[11px]"
+              style="font-variation-settings:'FILL' 0,'wght' 200,'GRAD' 0,'opsz' 20">lock</span>
+        <span>Encrypted Tunnel</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="attempt-counter" class="text-error/50"></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- System telemetry strip -->
+  <div class="mt-6 grid grid-cols-3 gap-2">
+    <div class="p-3 bg-surface-container-low border-l border-outline-variant/20">
+      <div class="text-[7px] text-on-surface-variant/40 uppercase tracking-widest mb-1">LATENCY</div>
+      <div class="monospaced-data text-xs text-secondary-fixed" id="tele-latency">—</div>
+    </div>
+    <div class="p-3 bg-surface-container-low border-l border-outline-variant/20">
+      <div class="text-[7px] text-on-surface-variant/40 uppercase tracking-widest mb-1">SERVER</div>
+      <div class="monospaced-data text-xs text-primary" id="tele-server">—</div>
+    </div>
+    <div class="p-3 bg-surface-container-low border-l border-outline-variant/20">
+      <div class="text-[7px] text-on-surface-variant/40 uppercase tracking-widest mb-1">STATUS</div>
+      <div class="monospaced-data text-xs" id="tele-status">OFFLINE</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============================================================ -->
+<script>
+// ---- Show/hide password ----
+const pwInput = document.getElementById('password');
+const eyeIcon = document.getElementById('eye-icon');
+document.getElementById('toggle-pw').addEventListener('click', () => {
+  const hidden = pwInput.type === 'password';
+  pwInput.type = hidden ? 'text' : 'password';
+  eyeIcon.textContent = hidden ? 'visibility' : 'visibility_off';
+});
+
+// ---- Username typing status ----
+const unInput   = document.getElementById('username');
+const uidStatus = document.getElementById('uid-status');
+unInput.addEventListener('input', () => {
+  uidStatus.textContent = unInput.value.length ? `${unInput.value.length}ch` : '';
+});
+
+// ---- Ping server & telemetry ----
+async function ping() {
+  const t0 = performance.now();
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    const ms = (performance.now() - t0).toFixed(1);
+    const data = await r.json().catch(() => ({}));
+
+    document.getElementById('tele-latency').textContent = ms + 'ms';
+    document.getElementById('tele-server').textContent  = data.host || location.hostname;
+    document.getElementById('tele-status').textContent  = 'ONLINE';
+    document.getElementById('tele-status').className    = 'monospaced-data text-xs text-secondary-fixed';
+
+    // light up nodes
+    document.getElementById('node-uart').className =
+      'w-1.5 h-1.5 rounded-full ' + (data.uart ? 'bg-secondary-fixed' : 'bg-error/60');
+    document.getElementById('node-ros').className  =
+      'w-1.5 h-1.5 rounded-full ' + (data.ros  ? 'bg-primary animate-pulse' : 'bg-error/60');
+
+  } catch {
+    document.getElementById('tele-status').textContent = 'OFFLINE';
+    document.getElementById('tele-status').className   = 'monospaced-data text-xs text-error/70';
+  }
+}
+
+ping();
+setInterval(ping, 5000);
+
+// ---- Form submit ----
+let attempts = 0;
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const username    = document.getElementById('username').value.trim();
+  const password    = document.getElementById('password').value;
+  const destination = document.querySelector('input[name="destination"]:checked').value;
+
+  if (!username || !password) return;
+
+  // Loading state
+  const btn      = document.getElementById('submit-btn');
+  const spinner  = document.getElementById('spinner');
+  const btnText  = document.getElementById('btn-text');
+  const btnIcon  = document.getElementById('btn-icon');
+  const errorBox = document.getElementById('error-box');
+  const errText  = document.getElementById('error-text');
+  const succBox  = document.getElementById('success-box');
+
+  btn.disabled     = true;
+  spinner.classList.remove('hidden');
+  btnText.textContent = 'Authenticating…';
+  btnIcon.classList.add('hidden');
+  errorBox.classList.add('hidden');
+  succBox.classList.add('hidden');
+
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await resp.json();
+
+    if (resp.ok && data.ok) {
+      // ---- SUCCESS ----
+      succBox.classList.remove('hidden');
+      btnText.textContent = 'Linked ✓';
+      // Pulse the glow
+      document.getElementById('glow-1').style.opacity = '1';
+      setTimeout(() => {
+        window.location.href = destination;
+      }, 900);
+
+    } else {
+      // ---- FAIL ----
+      attempts++;
+      const remaining = data.remaining ?? (5 - attempts);
+      errText.textContent = data.message
+        ? data.message.toUpperCase()
+        : `INVALID CREDENTIALS — ${remaining} ATTEMPT${remaining !== 1 ? 'S' : ''} LEFT`;
+      errorBox.classList.remove('hidden');
+
+      // Shake card
+      const card = document.getElementById('login-card');
+      card.classList.add('shake');
+      setTimeout(() => card.classList.remove('shake'), 450);
+
+      if (attempts >= 5) {
+        btn.disabled = true;
+        errText.textContent = 'LOCKOUT: TOO MANY ATTEMPTS — REFRESH TO RETRY';
+        document.getElementById('attempt-counter').textContent = 'LOCKED';
+      } else {
+        document.getElementById('attempt-counter').textContent = `${attempts}/5`;
+      }
+
+      // Reset button
+      btn.disabled        = false;
+      spinner.classList.add('hidden');
+      btnText.textContent = 'Establish Link';
+      btnIcon.classList.remove('hidden');
+    }
+
+  } catch (err) {
+    errText.textContent = 'CONNECTION ERROR — SERVER UNREACHABLE';
+    errorBox.classList.remove('hidden');
+    btn.disabled        = false;
+    spinner.classList.add('hidden');
+    btnText.textContent = 'Establish Link';
+    btnIcon.classList.remove('hidden');
+  }
+});
+
+// ---- Keyboard shortcut: Enter ----
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement.tagName !== 'BUTTON') {
+    document.getElementById('login-form').requestSubmit();
+  }
+});
+</script>
+</body>
+</html>
